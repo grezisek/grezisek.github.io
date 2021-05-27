@@ -1,1 +1,13 @@
-async function getFile(e="",t={},a="text"){const i=new Request(e,{method:"HEAD"}),s=(await fetch(i)).headers.get("Last-Modified");let r=localStorage.getItem("grezisek-"+e);if((r=r?JSON.parse(r):{lastModified:"Thu, 01 Jan 1970 00:00:00 GMT"}).lastModified==s)return JSON.parse(r.data);const d=new Request(e,Object.assign(t,{cache:"reload"})),n=await fetch(d),o=await n[a]();return localStorage.setItem("grezisek-"+e,JSON.stringify({lastModified:s,data:JSON.stringify(o)})),o}
+async function getFile(filePath = "", options={}, responseMode) {
+    const fileHeadResponse = await fetch(filePath, { method: "HEAD" });
+    const fileLastModified = Math.floor(new Date(fileHeadResponse.headers.get("Last-Modified")).getTime() / 6000) * 6000;
+    let local = localStorage.getItem("grezisek-" + filePath);
+    if (local) local = JSON.parse(local)
+    else local = { lastModified: "0" };
+    if (local.lastModified == fileLastModified) return JSON.parse(local.data);
+    const fileRequest = new Request(filePath, Object.assign({ cache: "reload" }, options));
+    const fileResponse = await fetch(fileRequest);
+    const fileData = await fileResponse[responseMode || "text"]();
+    localStorage.setItem("grezisek-" + filePath, JSON.stringify({ "lastModified": fileLastModified, "data": JSON.stringify(fileData) }));
+    return fileData;
+}
