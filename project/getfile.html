@@ -1,0 +1,64 @@
+<h2>Ogólne</h2>
+getFile sprawia, że pobieranie plików do javascript jest łatwiejsze.<br><br>
+Plik po pobraniu zapisywany jest też w pamięci podręcznej, co skraca czas kolejnego pobrania niemal do zera.
+
+<h2>Cechy</h2>
+<ul>
+    <li>
+        <h3>Szybkość</h3>
+        Wpływ biblioteki na czas wykonywania skryptu jest znikomy a złożoność zbliżona do liniowej.
+    </li>
+    <li>
+        <h3>Niewielki rozmiar</h3>
+        Podstawowa, nieskompresowana wersja to około 1kb (około 300 bajtów po minifikacji/gzip).
+    </li>
+    <li>
+        <h3>Prostota użycia</h3>
+        Do działania wystarczy sama ścieżka do pliku.
+    </li>
+    <li>
+        <h3>Część większej całości</h3>
+        Biblioteka znajdzie swoje miejsce w każdym projekcie. Wewnętrzne zmienne nie wyciekają poza nią.
+    </li>
+</ul>
+
+<h2>Użycie</h2>
+
+getFile przyjmuje 3 zmienne:
+<pre>
+<code>
+getFile(
+    // Ścieżka do pliku
+    "./database.json",
+
+    // Obiekt z konfiguracją zapytania
+    {
+        mode: "no-cors",
+        credentials: "omit"
+    },
+
+    // Metoda przetwarzania odpowiedzi
+    "json"
+);
+</code>
+</pre>
+
+działa asynchronicznie, więc należy zaczekać na odpowiedź, lub z góry powiedzieć, co jest do zrobienia po pobraniu:
+<pre>
+<code>
+const file = await getFile("./database.json");
+console.log(file);
+
+getFile("./database.json")
+    .then(console.log);
+</code>
+</pre>
+
+Aby upewnić się, że wszystko działa z biblioteką i bez niej, należy dodać wsparcie awaryjne:
+<pre>
+<code>
+const fileDownloader = window.getFile ||
+    ((path, conf, rType) => fetch(path, conf)
+        .then(resp => resp[rType || "text"]()));
+</code>
+</pre>

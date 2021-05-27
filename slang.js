@@ -109,8 +109,7 @@
     */
     function elementRenderPublisher(eventName, oldNode, newNode) {
         if (
-            eventName == "eachDataRenderEnd" || 
-            eventName == "eachTemplateRenderEnd"
+            eventName == "eachDataRenderEnd" 
         ) {
             dataRenderCounterStack--;
             if (!dataRenderedIndex[oldNode.innerText])
@@ -192,9 +191,9 @@
             const data = await response.text();
             const dataCont = node.parentNode.cloneNode();
             dataCont.innerHTML = data;
-            Array.prototype.forEach.call(dataCont.children, child => cloneAttributes(child, node));
-            node.replaceWith(...dataCont.childNodes);
-            elementRenderPublisher("eachDataRenderEnd", node, dataCont.childNodes);
+            const newNodes = [...dataCont.childNodes].map(node => node.cloneNode(true));
+            node.replaceWith(...newNodes);
+            elementRenderPublisher("eachDataRenderEnd", node, newNodes);
         },
         script(node, mimetype, isOutputContainer) {
             const newNode = document.head.appendChild(document.createElement("script"));
@@ -269,12 +268,31 @@
     
                 elementRenderPublisher("eachTemplateRenderStart", node, template);
         
-                template.querySelectorAll("slot")
-                    .forEach(slot => slot.outerHTML = 
-                        (src => src ? src.innerHTML : slot.outerHTML)
-                            ( slot.attributes.length ? node.content.querySelector(slot.attributes[0].name) : null)
-                    );
-                    
+                let queue = [
+                ...template.querySelectorAll("slot"),
+                ...[...template.querySelectorAll("template")]
+                    .map(t => [...t.content.querySelectorAll("slot")])
+                    .flat()
+                ];
+
+                while (queue.length) {
+                    queue.forEach(slot => {
+                        if (slot.attributes.length) {
+                            const slotSrc = node.content.querySelector(slot.attributes[0].name);
+                            if (slotSrc) slot.outerHTML = slotSrc.innerHTML;
+                            else {
+                                slot.parentNode.removeChild(slot)
+                            }
+                        }
+                    });
+                    queue = [
+                    ...template.querySelectorAll("slot"),
+                    ...[...template.querySelectorAll("template")]
+                        .map(t => [...t.content.querySelectorAll("slot")])
+                        .flat()
+                    ];
+                }
+                
                 node.outerHTML = template.innerHTML;
         
                 elementRenderPublisher("eachTemplateRenderEnd", node, template);
@@ -283,7 +301,6 @@
                 let newNode;
                 if (node.attributes[1]) newNode = document.createElement(node.attributes[1].name);
                 else newNode = document.createElement("div");
-    
                 elementRenderPublisher("eachStructRenderStart", node, newNode);
         
                 newNode.prepend(...node.childNodes);
@@ -297,18 +314,16 @@
             },
             data({node}, isOutputContainer) {
                 dataRenderCounterStack++;
-                node.innerHTML = node.innerText.replace(/[ \n]/g, "");
+                node.innerHTML = node.innerText.trim();
                 let fileType = node.innerText.slice((Math.max(0, node.innerText.lastIndexOf(".")) || Infinity) + 1);
                 if (support.defs.data[fileType]) {
                     node.classList.add("async", "file", `file--${fileType}`);
-                    support.defs.data[fileType][0](node, support.defs.data[fileType][1], isOutputContainer)
+                    support.defs.data[fileType][0](node, support.defs.data[fileType][1], isOutputContainer);
                 } else dataTypes.iframe(node, "");
             }
         }
     };
-    
-    support.selectorAll = `:is(${Object.keys(support.elements).join(", ")}):not(.async)`;
-    
+        
     /** 
     * Creates CSS media query rule from breakpoint markup
     * @return {String} CSS media query rule
@@ -371,15 +386,14 @@
                 .map(e => e.replace(/[\r\n]/g,""))
                 .filter((v, i, a) => a.indexOf(v) === i)
                 .join("");
-
+                
             tempRoot.innerHTML = templateMarkupRenderedIndex[templatesMarkup];
         }
-        
+
         Array.prototype.forEach.call(
             tempRoot.children,
             template => templates[template.localName.substring(template.localName.indexOf('-')+1)] = template.cloneNode(true)
         );
-    
         return templates;
     }
     
@@ -400,6 +414,7 @@
         const tempRoot = root.cloneNode();
         tempRoot.innerHTML = markup;
         let queue = tempRoot.querySelectorAll(support.selectorAll);
+
         while (queue.length) {
             queue.forEach(node => support.elements[node.localName]({node, templates}, isOutputContainer));
             queue = tempRoot.querySelectorAll(support.selectorAll);
@@ -459,14 +474,27 @@
             return markupRenderedIndex[contentMarkup];
         };
         const templates = createTemplateCollection(templatesMarkup);
-        
+
         eventSubscriptionList.renderStart.forEach(callback => callback({
             eventName: "renderStart",
             outputContainer,
-            templates
+            templates,
+            support
         }));
 
+        support.selectorAll = `:is(${Object.keys(support.elements).join(", ")}):not(.async)`;
+
+        while (outputContainer.lastChild) outputContainer.lastChild.remove();
+        outputContainer.prepend(...createNodesFromMarkup(outputContainer, contentMarkup, templates, isOutputContainer).childNodes);
         function dataLoadedCounterCallback() {
+            const queue = outputContainer.querySelectorAll(support.selectorAll);
+            if (queue.length) {
+                queue.forEach(asyncRendered => asyncRendered.replaceWith(
+                    ...createNodesFromMarkup(asyncRendered.parentNode, asyncRendered.outerHTML, templates, isOutputContainer).childNodes
+                ));
+                rendered();
+                return;
+            }
             
             if (!dataRenderCounterStack) {
                 markupRenderedIndex[contentMarkup] = outputContainer;
@@ -481,9 +509,6 @@
             if (dataRenderCounterStack) eventSubscriptionList.eachDataRenderEnd.unshift(dataLoadedCounterCallback);
             else dataLoadedCounterCallback();
         }
-
-        while (outputContainer.lastChild) outputContainer.lastChild.remove();
-        outputContainer.prepend(...createNodesFromMarkup(outputContainer, contentMarkup, templates, isOutputContainer).childNodes);
 
         rendered();
 

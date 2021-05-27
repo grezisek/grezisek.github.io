@@ -1,0 +1,105 @@
+<template-page>
+    <data>./css/common.css</data>
+    <data>./css/page.css</data>
+    <article class="content-root page">
+        <header class="page-header">
+            <h1 class="page-title">
+                <slot page-title></slot>
+            </h1>
+        </header>
+        <main class="page-content">
+            <data>
+                <slot page-content></slot>
+            </data>
+        </main>
+    </article>
+    <data>./js/common.js</data>
+    <data>./js/page.js</data>
+</template-page>
+
+<template-project>
+    <data>./css/common.css</data>
+    <data>./css/project.css</data>
+    <article class="content-root project">
+        <header class="project-header">
+            <h1 class="project-title">
+                <slot project-title></slot>
+            </h1>
+            <a href="?page=projekty">Powrót</a>
+            <hr>
+
+            <p class="project-excerpt">
+                <slot project-excerpt></slot>
+            </p>
+
+            <template link>
+                <link-text>
+                    <slot project-title></slot> na github
+                </link-text>
+                <link-url>
+                    <slot project-github></slot>
+                </link-url>
+            </template>
+            
+            <hr>
+        </header>
+        <main class="project-content">
+            <data>
+                <slot project-content></slot>
+            </data>
+        </main>
+    </article>
+    <data>./js/common.js</data>
+    <data>./js/project.js</data>
+</template-project>
+
+<template-item>
+    <!-- <data>./css/item.css</data> -->
+    <header class="item-header">
+        <h2 class="item-title">
+            <template link>
+                <link-text>
+                    <slot item-title></slot>
+                </link-text>
+                <link-url>
+                    <slot item-link></slot>
+                </link-url>
+            </template>
+        </h2>
+        <p class="item-excerpt">
+            <slot item-excerpt></slot>
+        </p>
+    </header>
+</template-item>
+
+
+<template-link>
+    <a>
+        <slot link-text></slot>
+    </a>
+    <slot link-url></slot>
+    <script>
+    ((href, node) => 
+        (node.href = href.textContent.trim()) &&
+        href.parentNode.removeChild(href))
+    (
+        document.currentScript.previousSibling,
+        document.currentScript.previousElementSibling
+    )
+    </script>
+</template-link>
+
+<template-error>
+    <data>./css/common.css</data>
+    <data>./css/page.css</data>
+    <article class="error">
+        <header class="error-header">
+            <h1 class="error-title">
+                <slot error-title></slot>
+            </h1>
+        </header>
+        <main class="error-content">
+            <slot error-content></slot>
+        </main>
+    </article>
+</template-error>

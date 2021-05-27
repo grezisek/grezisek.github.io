@@ -4,22 +4,11 @@ async function grezisek(conf) {
 
 
 (async loadTimeStamp => {
-    const timeStamps = {load: loadTimeStamp};
+    const timeStamps = { load: loadTimeStamp };
 
-    /**
-     * file loader
-     * @param {String} p filePath
-     * @param {String} j responseMode
-     */
-    const _load = window.getFile || ((p, j) => fetch(p).then(r => j? r[j]() : r.text()));
+    const _load = window.getFile || ((p, c, t) => fetch(p, c).then(r => r[t || "text"]()));
 
-    /**
-     * template renderer
-     * @param {String} slangMarkup markup to render
-     * @param {String} templatesMarkup templates to render
-     * @param {Node} outputContainer optional container to be cleared and used as output 
-     */
-    const _render = window.slang || 
+    const _render = window.slang ||
         ((slangMarkup, templatesMarkup, outputContainer = document.createElement("div")) => {
             outputContainer.innerHTML = slangMarkup;
             const templateContainer = document.createElement("div");
@@ -43,14 +32,8 @@ async function grezisek(conf) {
 
     Object.defineProperties(grezisek, createPublicProperties());
 
-
-
-    /**
-     * Creates compatible query object from location.search
-     * @return {Object} query: request, params
-     */
-    function createQuery() {
-        const searchParamsIterator = new URLSearchParams(location.search).entries();
+    function createQuery(queryString) {
+        const searchParamsIterator = new URLSearchParams(queryString).entries();
         const search = searchParamsIterator.next();
 
         if (search.done) return {
@@ -71,34 +54,87 @@ async function grezisek(conf) {
         }
     }
 
-    /**
-     * Renders and returns query execution result
-     * @return {Node} outputContainer
-     */
-    async function executeQuery({query, database, templates, outputContainer, home}) {
-        database = JSON.parse(await database);
+    async function executeQuery({
+        configuration,
+        query,
+        templates,
+        data,
+    }) {
+        const outputContainer = document.querySelector(configuration.output.querySelector);
+        if (!data || !data[query.request[0]]) return (query404 => _render(
+            `<template ${query404.request[0]}>${Object.keys(data[query404.request[0]][query404.request[1]])
+                .map(nodeName => `<${nodeName}>${data[query404.request[0]][query404.request[1]][nodeName]}</${nodeName}>`)
+                .join("")}</template>`,
+            templates,
+            outputContainer,
+            // query.params
+        ))(createQuery(configuration.query["404"]));
 
-        if (!query.request[0].length) query.request = home || ["page", "home"];
-        if (
-            !database ||
-            !database[query.request[0]] ||
-            !database[query.request[0]][query.request[1]]
-        ) return;
+        const templateName = query.request[0];
 
-        const data = database[query.request[0]][query.request[1]];
-        const markup = `<template ${query.request[0]}>${Object.keys(data).map(key => `<${key}>${data[key]}</${key}>`).join("")}</template>`;
+        const dataPart = data[templateName];
+
+        const dataKey = query.request[1];
+
+
+        if (!dataPart || !dataPart[dataKey]) return _render(
+            `<template ${templateName}></template>`,
+            templates,
+            outputContainer,
+            // query.params
+        );
+
         return _render(
-            markup,
-            templates = await templates,
+            `<template ${templateName}>${Object.keys(dataPart[dataKey])
+                .map(nodeName => `<${nodeName}>${dataPart[dataKey][nodeName]}</${nodeName}>`)
+                .join("")}</template>`,
+            templates,
             outputContainer,
             // query.params
         );
     }
 
+    function addCustomElementsSupport(database, data) {
+        data.support.elements["grezisek-archive"] = function({node}) {
+            node.classList.add("async");
+            const config = {
+                itemTemplate: node.querySelector("item-template"),
+                perPage: node.querySelector("per-page"),
+                fields: node.querySelector("use-fields"),
+            }
+
+            if (config.itemTemplate) config.itemTemplate = config.itemTemplate.attributes[0].name;
+            if (config.perPage) config.perPage = parseInt(config.perPage.attributes[0].name);
+            config.itemType = node.attributes.length ? node.attributes[0].name : config.itemTemplate;
+
+            if (!database.data[config.itemType]) return;
+
+            const itemsCollection = database.data[config.itemType];
+            const itemsSlugCollection = Object.keys(itemsCollection);
+            while (node.lastChild) node.lastChild.remove();
+            for (let i = 0; i < config.perPage; i++) {
+                if (!itemsSlugCollection[i]) break;
+                const slug = itemsSlugCollection[i];
+                let innerHTML = `<template ${config.itemTemplate}>`;
+                if (config.fields && config.fields.attributes.length)
+                    innerHTML += [...config.fields.attributes].map(field => {
+                        const fieldKey = field.value ? field.value : field.name;
+                        let dataValue;
+                        if (fieldKey == "item-link" && !field.value) {
+                            dataValue = `?${config.itemType}=${slug}`;
+                        } else dataValue = database.data[config.itemType][slug][fieldKey];
+                        return `<${field.name}>${dataValue}</${field.name}>`;
+                    }).join("");
+                innerHTML += `</template>`;
+                node.innerHTML += innerHTML;
+            }
+        }
+    }
+
     async function run(conf) {
         return (queried => {
             return {
-                success: !!queried,
+            success: !!queried,
                 details: {
                     queried,
                     time: {
@@ -110,31 +146,63 @@ async function grezisek(conf) {
         })(await executeQuery(conf))
     }
 
-    /**
-     * Gets everything ready before execution
-     * @param {Object} conf init configuration
-     * @param {String} conf.database database file path
-     * @param {String} conf.templates templates file path
-     * @returns {Object} initResult: success, details
-     */
-    function init(conf) {
+    function dbInfoToConfigObject(dbInfo) {
+        const configObject = {};
+        if (
+            typeof dbInfo == "string" ||
+            dbInfo instanceof String ||
+            dbInfo instanceof Request
+        ) {
+            configObject.url = dbInfo;
+            configObject.options = undefined;
+        } else if (dbInfo instanceof Object) {
+            if (
+                typeof dbInfo.url == "string" ||
+                dbInfo.url instanceof String ||
+                dbInfo.url instanceof Request
+            ) configObject.url = dbInfo.url;
+            if (dbInfo.options instanceof Object)
+                configObject.options = dbInfo.options;
+        }
+        return configObject;
+    }
+
+    
+    async function init(dbInfo = {
+        url: "./database.json",
+        options: {}
+    }) {
         timeStamps.init = performance.now();
 
-        if (conf.templates) conf.templates = _load(conf.templates);
-        else {
-            conf.templates = document.createElement("div");
-            conf.templates.prepend(...(conf.outputContainer || document.body).children);
-            conf.templates = conf.templates.innerHTML;
+        const customQuery = dbInfo.query;
+
+        dbInfo = dbInfoToConfigObject(dbInfo);
+
+        const database = await _load(dbInfo.url, dbInfo.options, "json");
+
+        const configuration = Object.assign({
+            query: {
+                // mode: "dynamic",
+                defaultQuery: "?page=home",
+                404: "?error=notfound",
+                // search: "?s"
+            },
+            output: {
+                querySelector: "body"
+            },
+            templates: "./templates.html"
+        }, database.configuration);
+
+        if (_render.subscribe) {
+            _render.subscribe("renderStart", data => addCustomElementsSupport(database, data));
         }
-
-        if (conf.database) conf.database = _load(conf.database);
-        else {
-            conf.database = (conf.outputContainer || document.body).innerText;
-        }
-
-        conf.query = createQuery();
-
-        return run(conf);
+        
+        return run({
+            configuration,
+            query: createQuery(customQuery ? customQuery : location.search.length ? location.search : configuration.query.defaultQuery),
+            templates: await _load(configuration.templates),
+            data: database.data
+        });
     }
 
     function createPublicProperties() {

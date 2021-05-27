@@ -1,0 +1,34 @@
+{
+    "data" : {
+        "page" : {
+            "home" : {
+                "page-title" : "Grezisek - front end dev",
+                "page-content" : "./page/home.html"
+            },
+            "projekty" : {
+                "page-title" : "Moje projekty",
+                "page-content" : "./page/projekty.html"
+            }
+        },
+        "project" : {
+            "getfile" : {
+                "project-title" : "getFile",
+                "project-excerpt" : "pobieranie plików z użyciem cache",
+                "project-content" : "./project/getfile.html",
+                "project-github" : "https://github.com/grezisek/grezisek-libraries/tree/main/getfile"
+            },
+            "slang" : {
+                "project-title" : "slang",
+                "project-excerpt" : "autorski język do tworzenia stron i biblioteka do jego obsługi",
+                "project-content" : "./project/slang.html",
+                "project-github" : "https://github.com/grezisek/grezisek-libraries/tree/main/slang"
+            }
+        },
+        "error" : {
+            "notfound" : {
+                "error-title" : "Nic tu nie ma",
+                "error-content" : "<a href='/'>Strona główna</a>"
+            }
+        }
+    }
+}

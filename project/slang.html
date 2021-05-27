@@ -1,0 +1,49 @@
+<h2>Ogólne</h2>
+Slang to język opisujący dane i ich ułożenie.<br><br>
+Dane inteligentnie zamieszczą się w odpowiedni dla nich sposób a elementy strukturalne wyręczą Cię w ich układaniu.
+
+<h2>Cechy</h2>
+<ul>
+    <li>
+        <h3>Prostota użycia</h3>
+        Użyj jednego z 2 elementów - data lub struct. Dodaj ścieżkę do danych i układ do struktury.
+        Możesz też użyć szablonów do powtarzalnych fragmentów. To wszystko.
+    </li>
+    <li>
+        <h3>Oszczędność czasu</h3>
+        Dane zostaną rozpoznane i zamieszczone w odpowiedniej formie. Struktura wygeneruje odpowiedni, responsywny CSS za Ciebie.
+    </li>
+    <li>
+        <h3>Szybkość działania</h3>
+        Ta strona używa biblioteki slang do działania. Sam oceń jej szybkość. (testy wkrótce)
+    </li>
+    <li>
+        <h3>Część większej całości</h3>
+        Biblioteka znajdzie swoje miejsce w każdym projekcie. Wewnętrzne zmienne nie wyciekają poza nią.
+    </li>
+</ul>
+
+<h2>Użycie</h2>
+
+slang przyjmuje 3 zmienne:
+<pre>
+<code>
+slang(
+    "string z kodem, który ma być przetworzony",
+    "string z kodem szablonów",
+    document.body // Node, w którym pokaże się rezultat
+);
+</code>
+</pre>
+
+działa synchronicznie, więc rezultat jest gotowy do użycia bezpośrednio po wykonaniu
+<pre>
+<code>
+slang("hello world", "", document.body);
+
+document.body.append(...slang("hello world").childNodes);
+</code>
+</pre>
+
+<h3>Ten dokument jest w trakcie tworzenia</h3>
+<a href="https://github.com/grezisek/grezisek-libraries/tree/main/slang">więcej informacji na github</a>
