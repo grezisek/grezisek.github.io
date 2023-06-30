@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="pl">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Asynchroniczny js - wprowadzenie - Grezisek</title>
+        <meta name="description" content="developer, blog">
+        <link rel="preload" href="https://fonts.googleapis.com/css2?family=Comme:wght@400;700&family=Aleo:wght@400;700&display=swap" as="style" onload="this.removeAttribute('onload');this.rel='stylesheet';this.removeAttribute('as');">
+        <link rel="stylesheet" href="/app.css">
+        <script src="/app.js"></script>
+    </head>
+    <body class="site">
+        <script>CSSVars();SettingsApply();</script>
+        <a href="#content" class="visually-hidden-focusable skip-link">Przeskocz do treści</a>
+        
+
+<header class="site__header">
+    <a href="/" class="columns columns--layout-1_auto columns--gap-2 branding">
+        <svg class="logo" xmlns="http://www.w3.org/2000/svg" width="33" height="41" viewBox="0 0 408 512">
+            <g transform="translate(-368 -584)">
+                <rect class="logo__neutral" width="80" height="80" transform="translate(696 1016)" fill="#fff"/>
+                <path class="logo__neutral" d="M368,1096V584H776V800H696V656H448v360H552v80Z" fill="#fff"/>
+                <path class="logo__red" d="M552,1096V880H776v80H632v136Z" fill="red"/>
+            </g>
+        </svg>grezisek
+    </a>
+
+    <a href="/blog/" class="nav-link nav-link--state-current_parent">
+        blog
+    </a>
+
+    <a href="/projekty/" class="nav-link">
+        projekty
+    </a>
+
+    <a href="mailto:grezisek@gmail.com">
+        e-mail
+    </a>
+</header>
+
+<article id="content" class="layout site__content">
+    <header class="site__content-header">
+        <h1>
+            Asyn<wbr>chro<wbr>niczny js - wprowa<wbr>dzenie
+        </h1>
+
+        <p>
+            Tłumaczę teorię, pojęcia i podstawy.
+        </p>
+    </header>
+
+    <section>
+        <h2>
+            Podstawy
+        </h2>
+
+        <p>
+            Żeby łatwo zrozumieć wszystkie detale, zacznijmy od podstaw.
+            Javascript to jeden wielki supermarket. Jeśli czegoś potrzebujesz, to nie możesz trafić gorzej - jest wszystko oprócz rzeczy z listy zakupów,
+            tłum ludzi, niemiły ochroniarz, podłogi mokre od prac ekipy sprzątającej, komunikaty dla pracowników,
+            jedno powolne wejście i cały system kolejek z dziwnymi społecznymi zasadami o których nikt nie mówi głośno.
+        </p>
+
+        
+        <h3>
+            Jedno wejście i wyjście
+        </h3>
+
+        <p>
+            Możemy rozdzielić obowiązki w osobnych kolejkach i korzystać z różnych reguł wyznaczających kolejność działania.
+            Możemy wykorzystać więcej rdzeni procesora lub kartę graficzną.
+            Możemy zwlekać z reakcją, nie reagować zbyt często albo reagować zapobiegawczo.
+            Zawsze na końcu, rezultat wszystkich działań łączony jest w jedną synchroniczną całość.
+        </p>
+
+        <h3>
+            Tłum, ochroniarz, mokre podłogi i komunikaty
+        </h3>
+
+        <p>
+            Oprócz twojego kodu, dzieje się bardzo dużo innych rzeczy,
+            które mogą wpływać na twój kod, blokować wykonywanie, powodować błędy, wpychać się do kolejki, psuć twoje dane i utrudniać życie.
+            Z tego powodu, niektóre zaawansowane operacje muszą przestrzegać dodatkowych reguł albo dodatkowo dbać o bezpieczeństwo.
+        </p>
+
+        <h3>
+            Dziwne zasady
+        </h3>
+
+        <p>
+            Nikt właściwie nie jest pewny co się dzieje, kiedy się dzieje i czy właściwie rzeczywiście się dzieje.
+            Tym bardziej nikt nie jest pewny czemu. Twój kod musi być gotowy na to wszystko i ty niestety też.
+        </p>
+    </section>
+
+    <section>
+        <h2>
+            Synchroniczny kod
+        </h2>
+
+        <p>
+            Pracę rozpoczyna główny wątek, który (czasem) wykonuje pierwszy załadowany skrypt, (czasem) zaczynając od pierwszej linijki.
+            Ma on do dyspozycji swój własny stos spraw do załatwienia.
+            Po przeczytaniu pierwszej instrukcji, wrzuca on tę instrukcję na stos, żeby się nią zaraz zająć.
+            Jeśli instrukcja jest prosta (nie da się jej rozłożyć na osobne kroki), to wykonywana jest już w tym momencie i usuwana ze stosu.
+            Jeśli instrukcja jest trudna, to na stosie rzeczy do zrobienia ląduje po kolei każdy krok i na każdym jest stosowana ta sama logika.
+            Gdy kroki się skończą, sama też jest usuwana ze stosu.
+        </p>
+
+        <p>
+            Nie ważne jak bardzo skomplikowane lub proste to jest "pod maską", sednem jest fakt, że to ten stos sprawia, że kod wykonuje się w odpowiedniej kolejności.
+            Podczas całkowitej bezczynności, stos rzeczy do zrobienia jest pusty i czeka na nowe wydarzenia.
+            Gdy pojawi się jakieś zadanie (na przykład ruch myszką), główny wątek wraca do pracy.
+            W dalszych częściach przejdziemy z syncrhonicznego zachowania, przez próby udawania i działanie asynchroniczne (naprzemienne) aż do wielowątkowego (równoległego).
+        </p>
+        
+        <ol class="grid grid--layout-1_1_2 grid--gap-2 ordered-grid">
+            <li class="content-entry">
+                <h2 class="content-entry__title">
+                    SetTimeout i setInterval
+                </h2>
+    
+                <p class="content-entry__excerpt">
+                    Najprostszymi metodami przypominającymi asynchroniczność są setTimeout i setInterval. 
+                    Jeśli wyznaczony czas minął i główny wątek się nudzi, to instrukcja jest przenoszona na główny stos, po czym główny wątek ją wykonuje zgodnie ze zwykłymi zasadami.
+                </p>
+    
+                <a class="content-entry__readmore" href="/blog/asynchroniczny_js/1_timeout_interval.html">
+                    Czytaj dalej
+                </a>
+            </li>
+    
+            <li class="content-entry">
+                <h2 class="content-entry__title">
+                    RequestIdleCallback i requestAnimationFrame
+                </h2>
+    
+                <p class="content-entry__excerpt">
+                    Te dwa sposoby są dość podobne do setTimeout i setInterval ale samodzielnie decydują o ich momencie wykonania.
+                    Dzięki nim możemy wykonać coś w momencie bezczynności lub podczas każdej klatki animacji.
+                </p>
+    
+                <a class="content-entry__readmore" href="/blog/asynchroniczny_js/2_animationframe_idlecallback.html">
+                    Czytaj dalej
+                </a>
+            </li>
+        </ol>
+    </section>
+
+    <section>
+        <h2>
+            Asynchroniczny kod
+        </h2>
+
+        <p>
+            Jeśli chcemy wprowadzić jakieś działania "pomiędzy" rzeczami ze stosu, potrzebujemy do tego celu dodatkowych mechanizmów. 
+            Główny wątek ma w tym celu do dyspozycji osobny stos, na którym trzyma takie instrukcje i albo samodzielnie sprawdza moment, w którym instrukcja jest gotowa, albo daje odpowiednią kontrolę w kodzie.
+        </p>
+
+        <ol class="grid grid--layout-1_1_2 grid--gap-2 ordered-grid" start="3">
+            <li class="content-entry">
+                <h2 class="content-entry__title">
+                    Promise i then
+                </h2>
+    
+                <p class="content-entry__excerpt">
+                    Sposób podobny do setTimeout, który daje ręczną kontrolę momentu użycia.
+                    Zamiast używać czasu, masz do dyspozycji dwie funkcje - jedna od wywołania a druga od anulowania.
+                </p>
+    
+                <a class="content-entry__readmore" href="/blog/asynchroniczny_js/3_promise_then.html">
+                    Czytaj dalej
+                </a>
+            </li>
+    
+            <li class="content-entry">
+                <h2 class="content-entry__title">
+                    Async i await
+                </h2>
+    
+                <p class="content-entry__excerpt">
+                    Czasem zamiast ręcznego zarządzania Promise, możesz chcieć napisać funkcję lub moduł async. Dzięki temu, w środku możesz zaczekać na Promise używając await.
+                    Możesz skorzystać z jeszcze innego podejścia i zamiast czekać "w miejscu", wyznaczyć funkcję, która się wykona, gdy wszystko będzie gotowe. Taką funkcje możesz przekazać w metodzie then.
+                </p>
+    
+                <a class="content-entry__readmore" href="/blog/asynchroniczny_js/4_async_await.html">
+                    Czytaj dalej
+                </a>
+            </li>
+    
+            <li class="content-entry">
+                <h2 class="content-entry__title">
+                    Generator
+                </h2>
+    
+                <p class="content-entry__excerpt">
+                    Jeśli z jakiegoś powodu chcesz przerwać w połowie funkcji i odłożyć resztę na później, masz do dyspozycji funkcję-generator, która robi właśnie to.
+                    Ten sposób pozwala też zmieniać dane w trakcie przerwy, zwracać osobne wartości z każdą przerwą albo korzystać z nieskończonych pętli w środku.
+                </p>
+    
+                <a class="content-entry__readmore" href="/blog/asynchroniczny_js/5_generator.html">
+                    Czytaj dalej
+                </a>
+            </li>
+    
+            <li class="content-entry">
+                <h2 class="content-entry__title">
+                    WebWorker
+                </h2>
+    
+                <p class="content-entry__excerpt">
+                    Pierwsza metoda, która rzeczywiście różni się od poprzednich.
+                    WebWorker uruchamia cały osobny proces obok głównego, ma swoje własne stosy i korzysta z własnego rdzenia w procesorze (lub zaczyna udawać, gdy stosujemy ich więcej niż istnieje rdzeni).
+                    Funkcjonalność w środku jest ograniczona a komunikacja z głównym wątkiem odbywa się przez wysyłanie i odbieranie wiadomości tekstowych albo coś w stylu teleportu, gdzie dane w miejscu początkowym przestają istnieć i pojawiają się w innym rdzeniu.
+                </p>
+    
+                <a class="content-entry__readmore" href="/blog/asynchroniczny_js/6_web_worker.html">
+                    Czytaj dalej
+                </a>
+            </li>
+        </ol>
+        
+        <article>
+            <h3>
+                Compute shader w WebGPU
+            </h3>
+    
+            <p>
+                Kolejna metoda, która robi rzeczywistą różnicę.
+                Tutaj, zamiast zlecać pracę dla osobnego wątku, zlecasz ją karcie graficznej.
+                Jeśli wykonujesz bardzo dużo małych prac, karta graficzna wykona je najszybciej.
+            </p>
+    
+            <b>Więcej informacji wkrótce</b>
+        </article>
+    </section>
+        
+    <section>
+        <h2>
+            Rezultat
+        </h2>
+
+        <p>
+            Zarówno asynchroniczne metody, jak i dwie ostatnie (równoległe), zaczynają i kończą w głównym wątku.
+            Możemy je stosować, żeby lepiej wykorzystać jeden rdzeń procesora, użyć większej ilości rdzeni naraz lub zaangażować moc obliczeniową karty graficznej.
+            Dzięki odpowiedniemu użyciu, główny wątek ma mało pracy i szybko reaguje na polecenia użytkownika a także szybciej kończy wyznaczone zadania.
+            Nie ma w tym żadnej magii i w gruncie rzeczy większość przypadków to jedna, ta sama, prosta metoda osobnego stosu instrukcji, która różni się jedynie sposobem użycia i "stopniem zagęszczenia" rezultatu.
+        </p>
+    </section>
+    
+    <footer class="columns columns--gap-1 site__content-footer">
+        <a href="/blog/asynchroniczny_js/">Powrót do listy części</a>
+        <a href="/blog/">Powrót do listy artykułów</a>
+    </footer>
+</article>
+        <footer class="site__footer">
+<div class="grid grid--layout-1_1_3 grid--gap-2">
+    <address>
+        <span class="columns columns--layout-auto_1 columns--gap-2 branding branding--state-current">
+            <svg class="logo" xmlns="http://www.w3.org/2000/svg" width="33" height="41" viewBox="0 0 408 512">
+                <g transform="translate(-368 -584)">
+                    <rect class="logo__neutral" width="80" height="80" transform="translate(696 1016)" fill="#fff"/>
+                    <path class="logo__neutral" d="M368,1096V584H776V800H696V656H448v360H552v80Z" fill="#fff"/>
+                    <path class="logo__red" d="M552,1096V880H776v80H632v136Z" fill="red"/>
+                </g>
+            </svg>grezisek
+        </span>
+
+        <p>Full stack web developer</p>
+
+        <a href="mailto:grezisek@gmail.com">Napisz e-mail</a>
+    </address>
+
+    <ul class="accordion">
+        <li class="accordion__item">
+            <details class="accordion__details">
+                <summary class="accordion__summary">
+                    Cel tej strony
+                </summary>
+
+                <div class="accordion__content">
+                    <p>
+        Przede wszystkim, chcę dostarczyć czytelnikom wszechstronnego materiału edukacyjnego z zakresu JavaScriptu.
+        Strona stawia sobie za zadanie pomóc w nauce tego języka programowania poprzez przystępne tutoriale, praktyczne przykłady i ciekawe projekty.
+    </p>
+
+    <p>
+        Kolejnym celem jest prezentacja moich własnych projektów.
+        Cieszę się, że mogę podzielić się moimi osiągnięciami z szeroką publicznością i pokazać, jak wykorzystuję JavaScript w praktyce.
+        Moje projekty są różnorodne i obejmują zarówno drobne funkcje pomocnicze jak i wieloletnie projekty-giganty.
+        Pragnę zainspirować innych programistów do eksperymentowania i tworzenia innowacyjnych rozwiązań.
+    </p>
+
+    <p>
+        Wreszcie, pragnę znaleźć pracę, która pozwoli mi wykorzystać moje doświadczenie w programowaniu i jednocześnie zapewni dynamiczne i kreatywne środowisko pracy.
+        Cieszę się, że mogę zaprezentować swoje portfolio i udostępnić informacje o moich osiągnięciach na tej stronie.
+        Liczę na to, że przyciągnie to uwagę pracodawców, którzy poszukują zdolnego i zaangażowanego programisty.
+    </p>
+                </div>
+            </details>
+        </li>
+        <li class="accordion__item">
+            <details class="accordion__details">
+                <summary class="accordion__summary">
+                    Ułatwienia dostępności
+                </summary>
+
+                <div class="accordion__content">
+                    <p>
+        Poprawa dostępności materiałów edukacyjnych jest jednym z głównych priorytetów technologicznych mojej strony internetowej.
+        Ta została zaprojektowana i rozwijana zgodnie z wytycznymi WCAG w celu spełnienia co najmniej wersji AA.
+        Oznacza to, że dokładam wszelkich starań, aby treści były czytelne, łatwe do nawigacji i dostępne dla osób z różnymi rodzajami niepełnosprawności oraz w trudnych warunkach.
+    </p>
+
+    <p>
+        Aby zapewnić jak największe dopasowanie, moja strona obsługuje automatyczne przełączanie między jasnym i ciemnym trybem.
+        Możesz polegać na ustawieniach swojego urządzenia i oczekiwać przewidywalnych rezultatów (szczególnie braku nagłej, oślepiającej bieli w środku nocy).
+        Strona automatycznie wykrywa też twoje preferencje ograniczonej ilości efektów ruchu i zmienia sposób animowania na bardziej przyjazny.
+    </p>
+
+    <p>
+        Ponadto, moja strona automatycznie redukuje zużycie internetu, wykrywając odpowiedni nagłówek HTTP i dostosowując zawartość.
+        Dzięki temu, korzystając z wolniejszego połączenia internetowego lub ograniczonego pakietu danych, możesz nadal korzystać z treści strony w sposób efektywny i bez większych przeszkód.
+    </p>
+
+    <p>
+        Moja strona umożliwia pełne nawigowanie za pomocą klawiatury.
+        Jeśli korzystasz z czytnika ekranowego lub masz trudności w obsłudze myszy, możesz swobodnie poruszać się po stronie i korzystać z jej funkcjonalności.
+    </p>
+
+    <p>
+        Dodatkowe dostosowanie strony do potrzeb lub upodobań jest możliwe poprzez panel ustawień.
+        Możesz tam ręcznie kontrolować kontrast, przełączać między jasnym i ciemnym trybem, regulować grubość obramowań elementów interaktywnych, kontrolować sposób zapisu ustawień i zarządzać zapisanymi danymi.
+    </p>
+
+    <p>
+        Dążę do ciągłego doskonalenia dostępności mojej strony i monitorowania nowych wytycznych WCAG.
+        Jeśli masz jakiekolwiek sugestie lub uwagi dotyczące dostępności mojej strony, proszę o kontakt.
+        Cenię opinię użytkowników i jestem otwarty na wprowadzanie ulepszeń, aby zapewnić jak najlepsze doświadczenie dla wszystkich odwiedzających.
+    </p>
+                </div>
+            </details>
+        </li>
+        <li class="accordion__item">
+            <details class="accordion__details">
+                <summary class="accordion__summary">
+                    Polityka prywatności
+                </summary>
+
+                <div class="accordion__content">
+                    <ol>
+        <li>
+            <b>Pliki cookie i śledzenie:</b> Ta strona internetowa nie używa plików cookie ani śledzenia.
+            Nie gromadzę żadnych informacji o Twojej wizycie na stronie.
+        </li>
+        <li>
+            <b>Dane przekazywane w mailu:</b> Jeśli skontaktujesz się ze mną, przesyłając wiadomość e-mail, będę przetwarzać jedynie te dane, które dobrowolnie mi udostępnisz w treści wiadomości.
+            Te informacje są używane wyłącznie w celu odpowiedzi na Twoje pytania i zgłoszenia lub wcale.
+            Są to jednocześnie jedyne informacje o Tobie, do których mam dostęp.
+        </li>
+        <li>
+            <b>Dane ustawień:</b> Strona może używać lokalnej pamięci przeglądarki do zapamiętywania ustawień.
+            W odróżnieniu od cookie, te dane nie są wysyłane przez internet.
+            Zapamiętywanie ustawień jest opcjonalne i domyślnie nieaktywne.
+            Zapisane ustawienia możesz zobaczyć lub usunąć w panelu ustawień strony, w grupie "Zapisane ustawienia" lub z poziomu panelu przeglądarki.
+        </li>
+        <li>
+            <b>Udostępnianie danych:</b> Nie udostępniam żadnych przekazanych mi danych osobom trzecim bez Twojej zgody, chyba że wymaga tego prawo.
+        </li>
+        <li>
+            <b>Bezpieczeństwo:</b> Stosuję odpowiednie środki bezpieczeństwa, aby chronić Twoje dane przed nieuprawnionym dostępem, utratą lub nieuprawnionym ujawnieniem.
+            Jednakże, żadna metoda przesyłania danych przez internet nie jest całkowicie bezpieczna i nie mogę zagwarantować absolutnego bezpieczeństwa przekazywanych informacji.
+        </li>
+        <li>
+            <b>Zmiany w polityce prywatności:</b> Niniejsza polityka prywatności może być okresowo aktualizowana.
+            Wszelkie istotne zmiany będą opublikowane na tej stronie.
+        </li>
+    </ol>
+                </div>
+            </details>
+        </li>
+    </ul>
+    <small>© grezisek 2023. Wszystkie prawa zastrzeżone.</small>
+</div>
+</footer>
+
+    <div class="settings">
+        <button id="settings_open" class="settings__open">Ustawienia</button>
+        
+        <dialog id="settings_panel" class="settings__panel">
+            <div id="settings_panel_content" class="columns settings__panel-content">
+                <h2>
+                    Ustawienia
+                </h2>
+
+                <button id="settings_close" class="settings__panel-close">
+                    Zamknij
+                </button>
+
+                <form id="settings_form" class="settings__form">
+                    <fieldset class="columns columns--gap-1">
+                        <legend>Motyw:</legend>
+
+                        <label class="columns columns--layout-auto_1 columns--gap-1">
+                            <input type="radio" name="theme" value="">
+                            Automatyczny (urządzenie)
+                        </label>
+
+                        <label class="columns columns--layout-auto_1 columns--gap-1">
+                            <input type="radio" name="theme" value="dark">
+                            Ciemny
+                        </label>
+
+                        <label class="columns columns--layout-auto_1 columns--gap-1">
+                            <input type="radio" name="theme" value="light">
+                            Jasny
+                        </label>
+                    </fieldset>
+
+                    <fieldset class="columns columns--gap-1">
+                        <legend>Kontrast:</legend>
+
+                        <label class="columns columns--layout-auto_1 columns--gap-1">
+                            <input type="radio" name="contrast" value="">
+                            Automatyczny (urządzenie)
+                        </label>
+
+                        <label class="columns columns--layout-auto_1 columns--gap-1">
+                            <input type="radio" name="contrast" value="less">
+                            Normalny
+                        </label>
+
+                        <label class="columns columns--layout-auto_1 columns--gap-1">
+                            <input type="radio" name="contrast" value="more">
+                            Zwiększony
+                        </label>
+                    </fieldset>
+
+                    <fieldset class="columns columns--gap-1">
+                        <legend>Grubość obramówek:</legend>
+
+                        <label class="columns columns--layout-auto_1 columns--gap-1">
+                            <input type="radio" name="border_width" value="">
+                            Normalne
+                        </label>
+
+                        <label class="columns columns--layout-auto_1 columns--gap-1">
+                            <input type="radio" name="border_width" value="thin">
+                            Cienkie
+                        </label>
+
+                        <label class="columns columns--layout-auto_1 columns--gap-1">
+                            <input type="radio" name="border_width" value="thick">
+                            Grube
+                        </label>
+                    </fieldset>
+
+                    <fieldset class="columns columns--gap-1">
+                        <legend>Zapamiętywanie ustawień:</legend>
+
+                        <label class="columns columns--layout-auto_1 columns--gap-1">
+                            <input type="radio" name="data" value="">
+                            Brak
+                        </label>
+
+                        <label class="columns columns--layout-auto_1 columns--gap-1">
+                            <input type="radio" name="data" value="local_storage">
+                            Trwały zapis w przeglądarce (localStorage)
+                        </label>
+
+                        <label class="columns columns--layout-auto_1 columns--gap-1">
+                            <input type="radio" name="data" value="session_storage">
+                            Tymczasowy zapis w przeglądarce (sessionStorage)
+                        </label>
+                    </fieldset>
+
+                    <fieldset class="columns columns--gap-1">
+                        <legend>Zapisane ustawienia:</legend>
+                        <code id="settings_output" class="background-frame"></code>
+                        <button id="settings_delete">Usuń zapisane ustawienia</button>
+                    </fieldset>
+                </form>
+            </div>
+        </dialog>
+    </div>
+
+<script>(() => {
+    if (navigator.connection?.saveData) {
+        return;
+    }
+
+    let scriptLoaded = false;
+
+    const loadScript = () => {
+        if (scriptLoaded) {
+            return;
+        }
+
+        if (!document.querySelector("pre code")) {
+            return;
+        }
+        
+        const scriptNode = document.createElement("script");
+        scriptNode.src = "//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js";
+        document.documentElement.appendChild(scriptNode);
+        
+        scriptNode.addEventListener("load", () => hljs.highlightAll());
+
+        scriptLoaded = true;
+    }; 
+
+    document.documentElement.addEventListener("viewchange", loadScript);
+
+    loadScript();
+})()</script>
+    </body>
+</html>

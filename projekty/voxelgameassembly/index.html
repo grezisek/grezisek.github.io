@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="pl">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>VoxelGameAssembly - Grezisek</title>
+        <meta name="description" content="developer, blog">
+        <link rel="preload" href="https://fonts.googleapis.com/css2?family=Comme:wght@400;700&family=Aleo:wght@400;700&display=swap" as="style" onload="this.removeAttribute('onload');this.rel='stylesheet';this.removeAttribute('as');">
+        <link rel="stylesheet" href="/app.css">
+        <script src="/app.js"></script>
+    </head>
+    <body class="site">
+        <script>CSSVars();SettingsApply();</script>
+        <a href="#content" class="visually-hidden-focusable skip-link">Przeskocz do treści</a>
+        
+<header class="site__header">
+    <a href="/" class="columns columns--layout-1_auto columns--gap-2 branding">
+        <svg class="logo" xmlns="http://www.w3.org/2000/svg" width="33" height="41" viewBox="0 0 408 512">
+            <g transform="translate(-368 -584)">
+                <rect class="logo__neutral" width="80" height="80" transform="translate(696 1016)" fill="#fff"/>
+                <path class="logo__neutral" d="M368,1096V584H776V800H696V656H448v360H552v80Z" fill="#fff"/>
+                <path class="logo__red" d="M552,1096V880H776v80H632v136Z" fill="red"/>
+            </g>
+        </svg>grezisek
+    </a>
+
+    <a href="/blog/" class="nav-link">
+        blog
+    </a>
+
+    <a href="/projekty/" class="nav-link nav-link--state-current_parent">
+        projekty
+    </a>
+
+    <a href="mailto:grezisek@gmail.com">
+        e-mail
+    </a>
+</header>
+
+<article id="content" class="site__content">
+    <header class="site__content-header">
+        <h1>
+            Voxel<wbr>Game<wbr>Assembly
+        </h1>
+
+        <small>
+            <a href="https://www.khronos.org/webgl/" target="_blank">
+                WebGL, WebGL2
+            </a>,
+            <a href="https://www.w3.org/TR/webgpu/" target="_blank">
+                WebGPU
+            </a>,
+            <a href="https://html.spec.whatwg.org/multipage/workers.html" target="_blank">
+                WebWorker
+            </a>,
+            <a href="https://en.wikipedia.org/wiki/Digital_differential_analyzer_(graphics_algorithm)" target="_blank">
+                DDA
+            </a>
+        </small>
+
+        <p>
+            Silnik do tworzenia gier 3D w przestrzeni voxelowej.
+        </p>
+        
+        <p>
+            Voxele to odpowiedniki pixeli w przestrzeni 3D - to najmniejsze "kostki" przestrzeni, które trzymają własne dane (np. "jestem bryłą ziemi") i pełnią w silniku rolę fragmentów terenu, cegieł budynków, cieczy, roślin itd.
+            Zacząłem projekt, żeby ćwiczyć <b>układanie kodu</b>, nauczyć się więcej o <b>wydajności</b> skryptów, <b>strukturach danych</b> i poznać część web developmentu, która wcześniej była mi obca - <b>dźwięk i grafika</b>.
+        </p>
+    </header>
+
+    <section>
+        <h2>
+            Pierwsze trójkąty
+        </h2>
+
+        <div class="grid grid--layout-1_1_2 grid--gap-2">
+            <img class="width-100%" src="/img/voxelengine_first_triangles.png" alt="Pierwsze trójkąty narysowane przez silnik" width="200" height="163" loading="lazy">
+            
+            <p>
+                Narysowanie pierwszych trójkątów z użyciem WebGL nie było trudne - musiałem nauczyć się podstaw języka glsl, w którym pisane są programy dla karty graficznej.
+                Reszta niezbędnego kodu była krótka, a wraz z dokumentacją i przykładami w internecie, łatwa do zrozumienia.
+            </p>
+        </div>
+    </section>
+    
+    <section>
+        <h2>
+            Pierwsze voxele
+        </h2>
+
+        <div class="grid grid--layout-1_1_2 grid--gap-2">
+            <p>
+                Następnym zadaniem było narysowanie pierwszych voxeli.
+                Niestety w tym celu musiałem zaprogramować kilka dodatkowych rzeczy, które pozwolą na wyświetlanie grafiki 3D - kamery, perspektywy i modelu pojedynczego voxela.
+                Tym sposobem, w moim kodzie pojawiły się pierwsze obszerne dane.
+                Kamera i perspektywa wymagają swoich macierzy, czyli serii 16 liczb.
+                Model voxela to lista wszystkich punktów dla trójkątów, które tworzą kształt.
+                Zacząłem przeczuwać problemy.
+            </p>
+            
+            <img class="width-100%" src="/img/voxelengine_first_voxel.png" alt="Pierwszy voxel narysowany przez silnik" width="200" loading="lazy">
+        </div>
+    </section>
+
+    <section>
+        <h2>
+            Pierwsze problemy z wydajnością
+        </h2>
+
+        <div class="grid grid--layout-1_1_2 grid--gap-2">
+            <img class="width-100%" src="/img/voxelengine_first_performance_issues.png" alt="Problemy z wydajnością podczas rysowania 125 voxeli - ilość klatek na sekundę spadła z 60 do 15" width="200" loading="lazy">
+            
+            <p>
+                Pierwsza wersja kodu zaczynała pokazywać problemy z wydajnością podczas rysowania zaledwie 64 voxeli.
+                Nie było w tym nic dziwnego - kod był wtedy w wersji, która miała jedynie zapewnić "jakieś" działanie.
+                Wiele czynności mogło być zoptymalizowane lub całkowicie pominięte.
+                Na przykład nie było potrzeby, żeby z każdą klatką animacji,
+                lista wszystkich voxeli była od nowa kolejkowana w karcie graficznej - w rzeczywistej grze sytuacja,
+                gdzie cały świat zmienia się 60 razy na sekundę, nigdy nie nastąpi.
+            </p>
+
+            <p>
+                Procesor wciąż nie dawał rady. Zaczynało być jasne, że mój kod potrzebował solidnej struktury,
+                w której mógłbym najpierw zadeklarować jak najwięcej gotowych danych
+                a potem tylko ich używać albo korzystać z nich jak ze ściągawek.
+                Sposób działania samego WebGL jest w gruncie rzeczy bardzo podobny,
+                więc po wprowadzeniu zmian, w kodzie zapanowała chwilowa harmonia.
+                Płynność działania była zadowalająca nawet podczas rysowania 10 tysięcy voxeli.
+                Mimo znacznej poprawy wiedziałem, że to nie wystarczy do zrobienia gry. Potrzebowałem kilku dodatkowych zer na końcu tej liczby. 
+                Przełom nastąpił, gdy zmieniłem wersję WebGL na nowszą i przeniosłem część pracy na kartę graficzną.
+                Główną optymalizacją była zmiana sposobu rysowania - zamiast przesyłania listy punktów i ich kolorów dla wszystkich rogów trójkątów z osobna (jeden po drugim),
+                zacząłem przesyłać jedynie listę pozycji gotowych voxeli a karta graficzna przejęła odpowiedzialność za trójkąty w środku (wszystkie naraz).
+            </p>
+            
+            <img class="width-100%" src="/img/voxelengine_performance_issues_1.png" alt="Niewielkie problemy z wydajnością podczas rysowania 8 tysięcy voxeli - ilość klatek na sekundę spadła z 60 do 40" width="200" loading="lazy">
+
+            <img class="width-100%" src="/img/voxelengine_performance_issues_2.png" alt="Brak problemów z wydajnością podczas rysowania 4 milionów voxeli - ilość klatek na sekundę spadła z 60 do 30 z powodu obciążenia karty graficznej" width="200" loading="lazy">
+            
+            <p>
+                Równolegle trwały prace nad wydajną strukturą do trzymania dużej ilości danych -
+                trzymanie każdego voxela jako instancji klasy okazało się bardzo niewydajne
+                i wymuszało częste przeszukiwanie całej listy w poszukiwaniu konkretnych voxeli.
+                Po przetestowaniu kilku wariantów struktury OCTree, wybrałem podział świata na fragmenty podobne do pudełek.
+                Znając wymiary i położenie pudełek, nie musiałem zapisywać pozycji każdego voxela z osobna.
+                W roli pudełek zastosowałem oszczędną listę liczb od 0 (puste) do 255, oznaczającyh typy wszystkich voxeli w środku.
+                Puste albo jednolicie wypełnione pudełka mogłem oznaczyć pojedynczą liczbą, co poprawiło wykorzystanie pamięci i ułatwiło pomijanie obliczeń w pustych i pełnych pudełkach.
+                Taka struktura sprzyjała szybszemu odczytywaniu i zmienianiu wartości, niż OCTree, a oszczędności w pamięci były tak duże, że nie musiałem się przez jakiś czas martwić.
+                W rezultacie użycie procesora spadło niemal do zera, a wydajność rysowania zwiększyła się do 4 milionów voxeli.
+            </p>
+        </div>
+    </section>
+
+    <section>
+        <h2>
+            Rozbudowa
+        </h2>
+
+        <div class="grid grid--layout-1_1_2 grid--gap-2">
+            <p>
+                Dodałem sterowanie do kamery, kolejkę rysującą wyłącznie najbliższą okolicę, podział na poziomy szczegółowości, podstawowe oświetlenie, dynamiczne cienie i dodatkową logikę redukującą ilość voxeli w kolejce rysowania.
+                Najciekawsze są zdecydowanie cienie, które działają na zasadzie ray tracingu.
+                Każdy voxel w najbliższym poziomie szczegółowości posiada swój własny promień, który wędruje w stronę słońca sprawdzając czy w coś uderzy.
+                O wydajność cieni dba algorytm DDA, który pozwala zredukować ilość testów kolizji promieni z przeszkodami.
+            </p>
+            
+            <img class="width-100%" src="/img/voxelengine_far_terrain_and_shadows_1.png" alt="Cień terenu łagodnie zanikający wraz z rosnącą odległością" width="200" loading="lazy">
+
+            <img class="width-100%" src="/img/voxelengine_far_terrain_and_shadows_2.png" alt="Cień i światło na przykładzie jednolitych grup voxeli porozrzucanych w przestrzeni" width="200" loading="lazy">
+            
+            <p>
+                Algorytm dodatkowo wykorzystuje naturę struktury danych, by omijać puste przestrzenie (puste pudełka) oraz samodzielnie wznawia pracę, gdy słońce wystarczająco zmieni swoją pozycję.
+                Pobieranie i przetwarzanie okolicy trwało niestety zbyt długo, żeby praca odbyła się w ciągu jednej klatki animacji. Zaprogramowałem więc narzędzie oparte o funkcję-generator, które wykonuje pracę we fragmentach, aż przekroczy limit czasu i potrafi wrócić do momentu, w którym ostatnio przerwało.
+                Dzięki temu, gracz może się poruszać płynnie po świecie, a praca obliczeniowa wykonywana jest w wolnej chwili.
+            </p>
+
+            <p>
+                Po dodaniu warstwy abstrakcji z "graczem" i "wrogiem", ich wspólnego fragmentu ze "sterowaniem",
+                przyszedł czas na wykrywanie voxeli pod nogami, wykrywanie ścian lub przeszkód i grawitację.
+                Dzięki zastosowanej strukturze danych mogłem łatwo ograniczyć ilość potrzebnych obliczeń.
+                Nie trzeba sprawdzać każdej zmiany pozycji (liczby po przecinku) - wystarczy moment zmiany voxela (liczby całkowite) lub całego pudełka (np. co 32 voxele).
+            </p>
+            
+            <img class="width-100%" src="/img/voxelengine_collisions.png" alt="Kilka rezultatów testu kolizji z terenem" width="200" loading="lazy">
+        </div>
+    </section>
+
+    <section>
+        <h2>
+            WebGPU
+        </h2>
+
+        <img class="width-100%" src="/img/voxelengine_webgpu.png" alt="Ogromna ilość voxeli, które powoli znikają w oddali, zmniejszając stopniowo ilość szczegółów" width="3332" height="1175" loading="lazy">
+
+        <p>
+            Najprawdopodobniej jestem teraz na skraju kolejnego przełomu - do użytku weszło nowe API, które przynosi większą kontrolę, wiele wbudowanych optymalizacji i nowe funkcje.
+            Dla przykładu, dzięki nowemu rodzajowi programu dla karty graficznej (compute shader), wiele obliczeń może być teraz przeniesione z procesora na kartę graficzną, a ta potrafi wykonać obliczenia na wszystkich elementach w jednym momencie.
+            Tyle nowości oznacza duże zmiany w aktualnym kodzie silnika ale też nowe możliwości i najpewniej dużo większą wydajność.
+        </p>
+    </section>
+
+    <footer class="columns columns--gap-1 site__content-footer">
+        <a href="/projekty/">Powrót do listy projektów</a>
+    </footer>
+</article>
+        <footer class="site__footer">
+<div class="grid grid--layout-1_1_3 grid--gap-2">
+    <address>
+        <span class="columns columns--layout-auto_1 columns--gap-2 branding branding--state-current">
+            <svg class="logo" xmlns="http://www.w3.org/2000/svg" width="33" height="41" viewBox="0 0 408 512">
+                <g transform="translate(-368 -584)">
+                    <rect class="logo__neutral" width="80" height="80" transform="translate(696 1016)" fill="#fff"/>
+                    <path class="logo__neutral" d="M368,1096V584H776V800H696V656H448v360H552v80Z" fill="#fff"/>
+                    <path class="logo__red" d="M552,1096V880H776v80H632v136Z" fill="red"/>
+                </g>
+            </svg>grezisek
+        </span>
+
+        <p>Full stack web developer</p>
+
+        <a href="mailto:grezisek@gmail.com">Napisz e-mail</a>
+    </address>
+
+    <ul class="accordion">
+        <li class="accordion__item">
+            <details class="accordion__details">
+                <summary class="accordion__summary">
+                    Cel tej strony
+                </summary>
+
+                <div class="accordion__content">
+                    <p>
+        Przede wszystkim, chcę dostarczyć czytelnikom wszechstronnego materiału edukacyjnego z zakresu JavaScriptu.
+        Strona stawia sobie za zadanie pomóc w nauce tego języka programowania poprzez przystępne tutoriale, praktyczne przykłady i ciekawe projekty.
+    </p>
+
+    <p>
+        Kolejnym celem jest prezentacja moich własnych projektów.
+        Cieszę się, że mogę podzielić się moimi osiągnięciami z szeroką publicznością i pokazać, jak wykorzystuję JavaScript w praktyce.
+        Moje projekty są różnorodne i obejmują zarówno drobne funkcje pomocnicze jak i wieloletnie projekty-giganty.
+        Pragnę zainspirować innych programistów do eksperymentowania i tworzenia innowacyjnych rozwiązań.
+    </p>
+
+    <p>
+        Wreszcie, pragnę znaleźć pracę, która pozwoli mi wykorzystać moje doświadczenie w programowaniu i jednocześnie zapewni dynamiczne i kreatywne środowisko pracy.
+        Cieszę się, że mogę zaprezentować swoje portfolio i udostępnić informacje o moich osiągnięciach na tej stronie.
+        Liczę na to, że przyciągnie to uwagę pracodawców, którzy poszukują zdolnego i zaangażowanego programisty.
+    </p>
+                </div>
+            </details>
+        </li>
+        <li class="accordion__item">
+            <details class="accordion__details">
+                <summary class="accordion__summary">
+                    Ułatwienia dostępności
+                </summary>
+
+                <div class="accordion__content">
+                    <p>
+        Poprawa dostępności materiałów edukacyjnych jest jednym z głównych priorytetów technologicznych mojej strony internetowej.
+        Ta została zaprojektowana i rozwijana zgodnie z wytycznymi WCAG w celu spełnienia co najmniej wersji AA.
+        Oznacza to, że dokładam wszelkich starań, aby treści były czytelne, łatwe do nawigacji i dostępne dla osób z różnymi rodzajami niepełnosprawności oraz w trudnych warunkach.
+    </p>
+
+    <p>
+        Aby zapewnić jak największe dopasowanie, moja strona obsługuje automatyczne przełączanie między jasnym i ciemnym trybem.
+        Możesz polegać na ustawieniach swojego urządzenia i oczekiwać przewidywalnych rezultatów (szczególnie braku nagłej, oślepiającej bieli w środku nocy).
+        Strona automatycznie wykrywa też twoje preferencje ograniczonej ilości efektów ruchu i zmienia sposób animowania na bardziej przyjazny.
+    </p>
+
+    <p>
+        Ponadto, moja strona automatycznie redukuje zużycie internetu, wykrywając odpowiedni nagłówek HTTP i dostosowując zawartość.
+        Dzięki temu, korzystając z wolniejszego połączenia internetowego lub ograniczonego pakietu danych, możesz nadal korzystać z treści strony w sposób efektywny i bez większych przeszkód.
+    </p>
+
+    <p>
+        Moja strona umożliwia pełne nawigowanie za pomocą klawiatury.
+        Jeśli korzystasz z czytnika ekranowego lub masz trudności w obsłudze myszy, możesz swobodnie poruszać się po stronie i korzystać z jej funkcjonalności.
+    </p>
+
+    <p>
+        Dodatkowe dostosowanie strony do potrzeb lub upodobań jest możliwe poprzez panel ustawień.
+        Możesz tam ręcznie kontrolować kontrast, przełączać między jasnym i ciemnym trybem, regulować grubość obramowań elementów interaktywnych, kontrolować sposób zapisu ustawień i zarządzać zapisanymi danymi.
+    </p>
+
+    <p>
+        Dążę do ciągłego doskonalenia dostępności mojej strony i monitorowania nowych wytycznych WCAG.
+        Jeśli masz jakiekolwiek sugestie lub uwagi dotyczące dostępności mojej strony, proszę o kontakt.
+        Cenię opinię użytkowników i jestem otwarty na wprowadzanie ulepszeń, aby zapewnić jak najlepsze doświadczenie dla wszystkich odwiedzających.
+    </p>
+                </div>
+            </details>
+        </li>
+        <li class="accordion__item">
+            <details class="accordion__details">
+                <summary class="accordion__summary">
+                    Polityka prywatności
+                </summary>
+
+                <div class="accordion__content">
+                    <ol>
+        <li>
+            <b>Pliki cookie i śledzenie:</b> Ta strona internetowa nie używa plików cookie ani śledzenia.
+            Nie gromadzę żadnych informacji o Twojej wizycie na stronie.
+        </li>
+        <li>
+            <b>Dane przekazywane w mailu:</b> Jeśli skontaktujesz się ze mną, przesyłając wiadomość e-mail, będę przetwarzać jedynie te dane, które dobrowolnie mi udostępnisz w treści wiadomości.
+            Te informacje są używane wyłącznie w celu odpowiedzi na Twoje pytania i zgłoszenia lub wcale.
+            Są to jednocześnie jedyne informacje o Tobie, do których mam dostęp.
+        </li>
+        <li>
+            <b>Dane ustawień:</b> Strona może używać lokalnej pamięci przeglądarki do zapamiętywania ustawień.
+            W odróżnieniu od cookie, te dane nie są wysyłane przez internet.
+            Zapamiętywanie ustawień jest opcjonalne i domyślnie nieaktywne.
+            Zapisane ustawienia możesz zobaczyć lub usunąć w panelu ustawień strony, w grupie "Zapisane ustawienia" lub z poziomu panelu przeglądarki.
+        </li>
+        <li>
+            <b>Udostępnianie danych:</b> Nie udostępniam żadnych przekazanych mi danych osobom trzecim bez Twojej zgody, chyba że wymaga tego prawo.
+        </li>
+        <li>
+            <b>Bezpieczeństwo:</b> Stosuję odpowiednie środki bezpieczeństwa, aby chronić Twoje dane przed nieuprawnionym dostępem, utratą lub nieuprawnionym ujawnieniem.
+            Jednakże, żadna metoda przesyłania danych przez internet nie jest całkowicie bezpieczna i nie mogę zagwarantować absolutnego bezpieczeństwa przekazywanych informacji.
+        </li>
+        <li>
+            <b>Zmiany w polityce prywatności:</b> Niniejsza polityka prywatności może być okresowo aktualizowana.
+            Wszelkie istotne zmiany będą opublikowane na tej stronie.
+        </li>
+    </ol>
+                </div>
+            </details>
+        </li>
+    </ul>
+    <small>© grezisek 2023. Wszystkie prawa zastrzeżone.</small>
+</div>
+</footer>
+
+    <div class="settings">
+        <button id="settings_open" class="settings__open">Ustawienia</button>
+        
+        <dialog id="settings_panel" class="settings__panel">
+            <div id="settings_panel_content" class="columns settings__panel-content">
+                <h2>
+                    Ustawienia
+                </h2>
+
+                <button id="settings_close" class="settings__panel-close">
+                    Zamknij
+                </button>
+
+                <form id="settings_form" class="settings__form">
+                    <fieldset class="columns columns--gap-1">
+                        <legend>Motyw:</legend>
+
+                        <label class="columns columns--layout-auto_1 columns--gap-1">
+                            <input type="radio" name="theme" value="">
+                            Automatyczny (urządzenie)
+                        </label>
+
+                        <label class="columns columns--layout-auto_1 columns--gap-1">
+                            <input type="radio" name="theme" value="dark">
+                            Ciemny
+                        </label>
+
+                        <label class="columns columns--layout-auto_1 columns--gap-1">
+                            <input type="radio" name="theme" value="light">
+                            Jasny
+                        </label>
+                    </fieldset>
+
+                    <fieldset class="columns columns--gap-1">
+                        <legend>Kontrast:</legend>
+
+                        <label class="columns columns--layout-auto_1 columns--gap-1">
+                            <input type="radio" name="contrast" value="">
+                            Automatyczny (urządzenie)
+                        </label>
+
+                        <label class="columns columns--layout-auto_1 columns--gap-1">
+                            <input type="radio" name="contrast" value="less">
+                            Normalny
+                        </label>
+
+                        <label class="columns columns--layout-auto_1 columns--gap-1">
+                            <input type="radio" name="contrast" value="more">
+                            Zwiększony
+                        </label>
+                    </fieldset>
+
+                    <fieldset class="columns columns--gap-1">
+                        <legend>Grubość obramówek:</legend>
+
+                        <label class="columns columns--layout-auto_1 columns--gap-1">
+                            <input type="radio" name="border_width" value="">
+                            Normalne
+                        </label>
+
+                        <label class="columns columns--layout-auto_1 columns--gap-1">
+                            <input type="radio" name="border_width" value="thin">
+                            Cienkie
+                        </label>
+
+                        <label class="columns columns--layout-auto_1 columns--gap-1">
+                            <input type="radio" name="border_width" value="thick">
+                            Grube
+                        </label>
+                    </fieldset>
+
+                    <fieldset class="columns columns--gap-1">
+                        <legend>Zapamiętywanie ustawień:</legend>
+
+                        <label class="columns columns--layout-auto_1 columns--gap-1">
+                            <input type="radio" name="data" value="">
+                            Brak
+                        </label>
+
+                        <label class="columns columns--layout-auto_1 columns--gap-1">
+                            <input type="radio" name="data" value="local_storage">
+                            Trwały zapis w przeglądarce (localStorage)
+                        </label>
+
+                        <label class="columns columns--layout-auto_1 columns--gap-1">
+                            <input type="radio" name="data" value="session_storage">
+                            Tymczasowy zapis w przeglądarce (sessionStorage)
+                        </label>
+                    </fieldset>
+
+                    <fieldset class="columns columns--gap-1">
+                        <legend>Zapisane ustawienia:</legend>
+                        <code id="settings_output" class="background-frame"></code>
+                        <button id="settings_delete">Usuń zapisane ustawienia</button>
+                    </fieldset>
+                </form>
+            </div>
+        </dialog>
+    </div>
+
+<script>(() => {
+    if (navigator.connection?.saveData) {
+        return;
+    }
+
+    let scriptLoaded = false;
+
+    const loadScript = () => {
+        if (scriptLoaded) {
+            return;
+        }
+
+        if (!document.querySelector("pre code")) {
+            return;
+        }
+        
+        const scriptNode = document.createElement("script");
+        scriptNode.src = "//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js";
+        document.documentElement.appendChild(scriptNode);
+        
+        scriptNode.addEventListener("load", () => hljs.highlightAll());
+
+        scriptLoaded = true;
+    }; 
+
+    document.documentElement.addEventListener("viewchange", loadScript);
+
+    loadScript();
+})()</script>
+    </body>
+</html>
