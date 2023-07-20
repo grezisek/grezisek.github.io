@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wajbuj</title>
+    <link href="https://fonts.googleapis.com/css2?family=Catamaran:wght@700&family=Caveat+Brush&family=Frijole&family=Proza+Libre:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            font-size: 50%;
+            text-wrap: balance;
+            --accent-hue: 120;
+        }
+        @media (min-width: 992px) {
+            :root {
+                font-size: 62.5%;
+            }
+        }
+        body {
+            --accent: hsl(var(--accent-hue), 70%, 25%);
+            margin: 0;
+            font-size: 1.6rem;
+            font-family: 'Proza Libre', sans-serif;
+        }
+        .hero {
+            position: relative;
+            min-height: 100dvh;
+            display: grid;
+            grid-template-columns: min(calc(100% - 4rem), 50rem);
+            place-content: center;
+        }
+        .hero__heading-part:nth-of-type(1) {
+            font-family: 'Frijole', cursive;
+        }
+        .hero__heading-part:nth-of-type(2) {
+            font-family: 'Caveat Brush', cursive;
+        }
+        .hero__heading {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: grid;
+            grid-template-columns: min(100%, 100rem);
+            justify-content: center;
+            margin: 0;
+            padding: 2rem;
+            background: linear-gradient(to bottom right, color-mix(in srgb, var(--accent) 40%, #111) 50%, color-mix(in srgb, var(--accent) 5%, #eee) 50%);
+            font-size: 3rem;
+        }
+        @media (min-width: 1300px) {
+            .hero__heading {
+                font-size: 4rem;
+            }
+        }
+        .hero__heading-part:nth-of-type(1) {
+            padding-right: 1rem;
+            color: #fff;
+        }
+        .hero__heading-part:nth-of-type(2) {
+            place-self: end;
+            padding-left: 1rem;
+            color: color-mix(in srgb, var(--accent) 20%, #333);
+            font-size: 1.2em;
+            text-align: right;
+        }
+        @media (min-height: 1180px) {
+            .hero__heading-part:nth-of-type(1),
+            .hero__heading-part:nth-of-type(2) {
+                align-self: center;
+            }
+        }
+        .hero__form {
+            position: relative;
+            display: grid;
+            grid-template-columns: 100%;
+            gap: 1.5rem;
+            padding: 2rem 2rem 3rem 2rem;
+            background: #fff;
+            z-index: 1;
+            box-shadow: 0 0 50px 0 #0003;
+            max-height: calc(100dvh - 32rem);
+            overflow-y: auto;
+        }
+        .hero__form-label {
+            display: grid;
+            grid-template-columns: 100%;
+            gap: 2rem;
+            font-family: 'Catamaran', sans-serif;
+            font-size: 3rem;
+            font-weight: 900;
+        }
+        .hero__form-input,
+        .hero__form-submit {
+            border: 3px solid;
+            border-radius: 10px;
+            font-size: 1.5rem;
+            font-weight: 900;
+            transition: 0.15s ease;
+            transition-property: background, border-color, box-shadow;
+        }
+        .hero__form-input {
+            padding: 0.7rem 1rem;
+            border-color: #444;
+            background: #fff;
+            outline: unset;
+            --s1: color-mix(in srgb, var(--accent) 0%, #fff);
+            box-shadow: 0 0 0 3px var(--s1);
+        }
+        .hero__form-submit {
+            padding: 1rem;
+            cursor: pointer;
+            background: var(--accent);
+            border-color: color-mix(in srgb, var(--accent) 80%, #fff);
+            color: #fff;
+            text-transform: uppercase;
+            outline: unset;
+
+            --s1: color-mix(in srgb, var(--accent) 0%, #fff);
+            --s2: color-mix(in srgb, var(--accent) 0%, #fff);
+            --s3: color-mix(in srgb, var(--accent) 0%, #fff);
+
+            box-shadow: 
+                0 0 0 1px var(--s3),
+                0 0 0 4px var(--s1),
+                0 0 0 6px var(--s2),
+                0 0 0 9px #fff,
+                0 0 0 11px var(--s1);
+        }
+        .hero__form-submit:hover,
+        .hero__form-submit:focus-visible {
+            background: color-mix(in srgb, var(--accent) 90%, #fff);
+            border-color: var(--accent);
+
+            --s1: color-mix(in srgb, var(--accent) 6%, #fff);
+            --s2: color-mix(in srgb, var(--accent) 11%, #fff);
+            --s3: color-mix(in srgb, var(--accent) 15%, #fff);
+            
+            box-shadow: 
+                0 0 0 2px var(--s3),
+                0 0 0 5px var(--s1),
+                0 0 0 7px var(--s2),
+                0 0 0 10px #fff,
+                0 0 0 12px var(--s1);
+        }
+        .hero__form-input:hover {
+            background: color-mix(in srgb, var(--accent) 5%, #fff);
+            border-color: var(--accent);
+        }
+        .hero__form-input:focus-visible {
+            background: color-mix(in srgb, var(--accent) 10%, #fff);
+            border-color: var(--accent);
+            --s1: color-mix(in srgb, var(--accent) 35%, #fff);
+            box-shadow: 0 0 0 4px var(--s1);
+        }
+    </style>
+</head>
+<body>
+    <main class="hero">
+        <h1 class="hero__heading">
+            <span class="hero__heading-part">Nadajesz na<br>innych falach</span>
+            <span class="hero__heading-part">czy żyjesz<br>w harmonii?</span>
+        </h1>
+    
+        <div class="hero__form">
+            <label class="hero__form-label">
+                Wybierz swoją falę i wajbuj z nami.
+                <input type="number" id="wave" class="hero__form-input" step="0.1" min="0.1" max="20000" value="123.4" required>
+            </label>
+
+            <button id="wajbuj" class="hero__form-submit">Wajbuj</button>
+
+            <small>
+                Aplikacja odtwarza dźwięk złożony z fal wszystkich uczestników.
+                Po wybraniu swojej fali, połączysz się z innymi, by kształtować i posłuchać aktualnego brzmienia społeczności.
+                Możesz też przemieszczać się po planszy wajbując bardziej z prawej lub lewej strony.
+            </small>
+        </div>
+    </main>
+
+    <dialog id="wajbuj_panel" class="panel">
+        <div class="panel__controls">
+            <button id="wajbuj_panel_close" class="panel__close">Rozłącz się</button>
+
+            <label class="panel__volume">
+                Głośność
+                <input type="range" id="wajbuj_panel_volume" min="0" max="100" step="1" value="10">
+            </label>
+        </div>
+
+        <div class="panel__details">
+            <label class="panel__detail panel__wave">
+                Twoja fala
+                <input type="number" id="wajbuj_panel_wave" step="0.1" min="0.1" max="20000">
+                <input type="range" id="wajbuj_panel_wave_slider" step="0.1" min="0.1" max="20000">
+            </label>
+    
+            <label class="panel__detail panel__position">
+                Twoja pozycja
+                <input type="number" id="wajbuj_panel_position" step="0.01" min="-1" max="1">
+                <input type="range" id="wajbuj_panel_position_slider" step="0.01" min="-1" max="1">
+            </label>
+    
+            <label class="panel__detail panel__total">
+                Ilość fal
+                <input type="number" id="wajbuj_panel_count" readonly>
+            </label>
+        </div>
+
+        <canvas id="wajbuj_panel_canvas" class="panel__canvas" width="2000" height="2000"></canvas>
+    </dialog>
+
+    <script src="./app.js"></script>
+    <link rel="stylesheet" href="./app.css">
+</body>
+</html>
