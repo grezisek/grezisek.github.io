@@ -3,7 +3,7 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Projekty - Grezisek</title>
+        <title>Wajbuj - Grezisek</title>
         <meta name="description" content="developer, blog">
         <link rel="preload" href="https://fonts.googleapis.com/css2?family=Comme:wght@400;700&family=Aleo:wght@400;700&display=swap" as="style" onload="this.removeAttribute('onload');this.rel='stylesheet';this.removeAttribute('as');">
         <link rel="stylesheet" href="/app.css">
@@ -28,7 +28,7 @@
         blog
     </a>
 
-    <a href="/projekty/" class="nav-link nav-link--state-current" aria-current="page">
+    <a href="/projekty/" class="nav-link nav-link--state-current_parent">
         projekty
     </a>
 
@@ -37,65 +37,97 @@
     </a>
 </header>
 
-<main id="content" class="site__content">
+<article id="content" class="site__content">
     <header class="site__content-header">
         <h1>
-            Projekty
+            Wajbuj
         </h1>
 
+        <small>
+            <a href="https://www.mongodb.com/" target="_blank">
+                MongoDB
+            </a>,
+            <a href="https://www.w3.org/TR/webaudio/" target="_blank">
+                WebAudio
+            </a>,
+            <a href="https://www.w3.org/TR/2021/SPSD-2dcontext-20210128/" target="_blank">
+                Canvas 2D
+            </a>
+        </small>
+
         <p>
-            Rzeczy, w których dłubię po pracy.
+            Mikro aplikacja społecznościowa.
         </p>
+
+        <a href="/wajbuj/" class="no-view-transition">Przejdź do aplikacji Wajbuj</a>
     </header>
 
-    <div class="grid grid--layout-1_2_3 grid--gap-2">
-        <div class="content-entry">
-            <h2 class="content-entry__title">
-                Wajbuj
-            </h2>
+    <section>
+        <h2>
+            Działanie
+        </h2>
 
-            <p class="content-entry__excerpt">
-                Mikro aplikacja społecznościowa.
+        <div class="grid grid--layout-1_1_2 grid--gap-2">
+            <p>
+                Wajbuj odtwarza dźwięk tworzony z fal i położenia wszystkich użytkowników.
+                Użytkownik może przechodzić na lewo i prawo (efekt stereo) lub zmieniać wysokość fali.
+                
+                Nie istnieje proces logowania ani rejestracji.
+                Po wybraniu fali, użytkownik zdobywa tymczasowy dostęp i co sekundę przesyła swoją falę na serwer.
+                Po kilku sekundach nieaktywności, tymczasowy dostęp traci ważność.
             </p>
-
-            <a class="blog-item__readmore" href="/projekty/wajbuj/">
-                Czytaj dalej
-            </a>
+            
+            <img class="width-100%" src="/img/wajbuj_home.png" alt="Ekran główny aplikacji, pokazujący wybór fali i przycisk startu" width="200" height="163" loading="lazy">
         </div>
-
-        <div class="content-entry">
-            <h2 class="content-entry__title">
-                Voxel<wbr>Game<wbr>Assembly
-            </h2>
-
-            <p class="content-entry__excerpt">
-                Silnik do tworzenia gier 3D w przestrzeni voxelowej.
-            </p>
-
-            <a class="blog-item__readmore" href="/projekty/voxelgameassembly/">
-                Czytaj dalej
-            </a>
-        </div>
-
-        <div class="content-entry">
-            <h2 class="content-entry__title">
-                Mouse<wbr>Effects
-            </h2>
-
-            <p class="content-entry__excerpt">
-                Szybkie efekty kursora myszy.
-            </p>
-
-            <a class="blog-item__readmore" href="/projekty/mouseeffects/">
-                Czytaj dalej
-            </a>
-        </div>
-    </div>
+    </section>
     
-    <div class="spacer spacer--2"></div>
+    <section>
+        <h2>
+            Społeczność
+        </h2>
+
+        <div class="grid grid--layout-1_1_2 grid--gap-2">
+            <img class="width-100%" src="/img/wajbuj_panel.png" alt="Ekran główny aplikacji, pokazujący wybór fali i przycisk startu" width="200" height="163" loading="lazy">
+            
+            <div>
+                <p>
+                    Użytkownicy nie posiadają tożsamości ani własnych danych.
+                    Mają oni jedynie swój tymczasowy dostęp i aktualną pozycję fali.
+                </p>
     
-    <a href="/">Powrót do strony głównej</a>
-</main>
+                <strong>Można na przykład:</strong>
+        
+                <ul>
+                    <li>gromadzić się w konkretnym miejscu i przygłośnić wybraną falę</li>
+                    <li>przeprowadzić publiczne głosowanie (na przykład prawo-tak, lewo-nie)</li>
+                    <li>kodować wiadomości i ogłoszenia lub muzykę (jak radio w zwolnionym tempie)</li>
+                    <li>utrzymywać firmową częstotliwość i gromadzić wpływy</li>
+                    <li>zagłuszać lub podsłuchiwać innych użytkowników</li>
+                    <li>zrobić program automatyzujący cały zestaw fal</li>
+                    <li>zawiesić serwer aplikacji</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <section>
+        <h2>
+            Rozwój
+        </h2>
+
+        <p>
+            Aktualna wersja jest eksperymentalna i nie jest wystarczająco wydajna.
+            Połączenie powinno używać <a href="https://websockets.spec.whatwg.org/" target="_blank">WebSocket</a> lub w inny sposób radzić sobie z dużym ruchem.
+            Już teraz, format danych został zmieniony z JSON na dedykowany, redukując zużycie łącza i umożliwiając wprowadzenie kompresji w przyszłości.
+            Aplikacja zostanie też wyposażona w zestaw podstawowych analizatorów dźwięku, które będą pokazywać bieżące brzmienie społeczności i statystyki.
+        </p>
+    </section>
+
+    <footer class="columns columns--gap-1 site__content-footer">
+        <a href="/wajbuj/" class="no-view-transition">Przejdź do aplikacji Wajbuj</a>
+        <a href="/projekty/">Powrót do listy projektów</a>
+    </footer>
+</article>
         <footer class="site__footer">
 <div class="grid grid--layout-1_1_3 grid--gap-2">
     <address>
