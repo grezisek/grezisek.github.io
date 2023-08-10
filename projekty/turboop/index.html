@@ -3,7 +3,7 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Projekty - Grezisek</title>
+        <title>TurboOP - Grezisek</title>
         <meta name="description" content="developer, blog">
         <link rel="preload" href="https://fonts.googleapis.com/css2?family=Comme:wght@400;700&family=Aleo:wght@400;700&display=swap" as="style" onload="this.removeAttribute('onload');this.rel='stylesheet';this.removeAttribute('as');">
         <link rel="stylesheet" href="/app.css">
@@ -28,7 +28,7 @@
         blog
     </a>
 
-    <a href="/projekty/" class="nav-link nav-link--state-current" aria-current="page">
+    <a href="/projekty/" class="nav-link nav-link--state-current_parent">
         projekty
     </a>
 
@@ -37,79 +37,72 @@
     </a>
 </header>
 
-<main id="content" class="site__content">
+<article id="content" class="site__content">
     <header class="site__content-header">
         <h1>
-            Projekty
+            TurboOP
         </h1>
 
+        <small>
+            <a href="https://html.spec.whatwg.org/multipage/workers.html" target="_blank">
+                WebWorker
+            </a>,
+            <a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Transferable_objects" target="_blank">
+                Transferable
+            </a>,
+            <a href="https://en.wikipedia.org/wiki/Thread_pool" target="_blank">
+                thread pool
+            </a>,
+            <a href="https://pl.wikipedia.org/wiki/Lista" target="_blank">
+                linked list
+            </a>,
+            <a href="https://developer.mozilla.org/en-US/docs/Web/API/structuredClone" target="_blank">
+                structuredClone
+            </a>
+        </small>
+
         <p>
-            Rzeczy, w których dłubię po pracy.
+            Bardzo łatwa wielordzeniowość.
         </p>
+
+        <a href="/turboop/" class="no-view-transition">Przejdź do strony TurboOP</a>
     </header>
 
-    <div class="grid grid--layout-1_2_3 grid--gap-2">
-        <div class="content-entry">
-            <h2 class="content-entry__title">
-                TurboOP
-            </h2>
+    <section>
+        <h2>
+            Działanie
+        </h2>
 
-            <p class="content-entry__excerpt">
-                Bardzo łatwa wielordzeniowość.
-            </p>
+        <p>
+            Każda instancja jest tworzona z gotowym zestawem instrukcji i wybraną ilością rdzeni.
+            Konstruktor generuje według nich kod JavaScript dla rdzeni i tworzy dla każdego osobny webWorker.
+        </p>
 
-            <a class="blog-item__readmore" href="/projekty/turboop/">
-                Czytaj dalej
-            </a>
-        </div>
-        
-        <div class="content-entry">
-            <h2 class="content-entry__title">
-                Wajbuj
-            </h2>
+        <p>
+            Instrukcje mogą być wykonywane w kilku różnych trybach (np. pojedynczo albo wiele naraz) a budowa sprzyja łatwej zmianie trybu.
+            Możliwe jest też dynamiczne przełączenie na działanie w głównym wątku (np. dla nietypowo małych danych).
+        </p>
+    </section>
 
-            <p class="content-entry__excerpt">
-                Mikro aplikacja społecznościowa.
-            </p>
+    <section>
+        <h2>
+            Ograniczenia
+        </h2>
 
-            <a class="blog-item__readmore" href="/projekty/wajbuj/">
-                Czytaj dalej
-            </a>
-        </div>
+        <p>
+            WebWorkery mają swoje ograniczenia. TurboOP stara się nie dodawać nowych.
+            Przesyłanie danych między rdzeniami jest powolne i ograniczone klonowaniem / transferowaniem.
+            Niektóre funkcje i obiekty nie istnieją w rdzeniach (na przykład window i document).
+            Kod TurboOP ma negatywny wpływ na wydajność w porównaniu do całkowicie dedykowanego kodu.
+            Implementacja obejmuje tylko podstawowe sposoby działania, stawiając łatwość użycia na pierwszym miejscu.
+        </p>
+    </section>
 
-        <div class="content-entry">
-            <h2 class="content-entry__title">
-                Voxel<wbr>Game<wbr>Assembly
-            </h2>
-
-            <p class="content-entry__excerpt">
-                Silnik do tworzenia gier 3D w przestrzeni voxelowej.
-            </p>
-
-            <a class="blog-item__readmore" href="/projekty/voxelgameassembly/">
-                Czytaj dalej
-            </a>
-        </div>
-
-        <div class="content-entry">
-            <h2 class="content-entry__title">
-                Mouse<wbr>Effects
-            </h2>
-
-            <p class="content-entry__excerpt">
-                Szybkie efekty kursora myszy.
-            </p>
-
-            <a class="blog-item__readmore" href="/projekty/mouseeffects/">
-                Czytaj dalej
-            </a>
-        </div>
-    </div>
-    
-    <div class="spacer spacer--2"></div>
-    
-    <a href="/">Powrót do strony głównej</a>
-</main>
+    <footer class="columns columns--gap-1 site__content-footer">
+        <a href="/turboop/" class="no-view-transition">Przejdź do strony TurboOP</a>
+        <a href="/projekty/">Powrót do listy projektów</a>
+    </footer>
+</article>
         <footer class="site__footer">
 <div class="grid grid--layout-1_1_3 grid--gap-2">
     <address>
