@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dokumentacja TurboOP</title>
+    <meta name="description" content="Turd-based (object-oriented) OmniProcessor">
+    <link rel="stylesheet" href="./app.css">
+    <link href="https://fonts.googleapis.com/css2?family=Coda&family=Mukta:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body class="docs">
+    <article>
+        <header>
+            <h1>Doku<wbr>men<wbr>tacja</h1>
+            <p>
+                Opis wszystkich opcji, funkcjonalności i sposobów użycia TurboOP.
+            </p>
+        </header>
+
+        <section>
+            <h2>Dodawanie do projektu</h2>
+
+            <ol>
+                <li>Pobierz <a href="./TurboOP.js" download="TurboOP.js">plik TurboOP</a></li>
+                <li>Zaimportuj TurboOP z pliku</li>
+            </ol>
+
+            <pre><code>import TurboOP from "./TurboOP.js";</code></pre>
+        </section>
+
+        <section>
+            <h2>Przygotowanie instancji</h2>
+
+            <ol>
+                <li>Przekaż obiekt z funkcjami</li>
+                <li>Ustaw ilość rdzeni</li>
+            </ol>
+
+            <pre><code>const op = new TurboOP(functionsToThread, numberOfCores);</code></pre>
+
+            <p>
+                Możesz tworzyć dużo instancji i dużo rdzeni.
+                Nadmiar instancji obciąży pamięć i uruchomi się wolniej a nadmiar rdzeni pogorszy szybkość instancji.
+            </p>
+
+            <dl>
+                <dt>functionsToThread</dt>
+                <dd>
+                    <code>{ [command: string]: { toThread, withTransferable } }</code><br>
+                    kolekcja funkcji do utworzenia w rdzeniach.
+
+                    <dl>
+                        <dt>toThread</dt>
+                        <dd>
+                            <code>(dataItem: unknown, memory?: { [key: string]: unknown }) => unknown</code><br>
+                            Funkcja wykonująca pracę w rdzeniach.
+                            W zależności od metody użycia, <code>dataItem</code> może być całością lub jednym elementem z tablicy przesłanych danych.
+                        </dd>
+                        <dt>withTransferable</dt>
+                        <dd>
+                            <code>boolean = false</code><br>
+                            Domyślny tryb kopiuje dane, <code>true</code> oznacza tryb transferu.
+                            Do użycia tej opcji wymagane jest, aby dane były w formacie <code>Transferable[]</code>.
+                        </dd>
+                    </dl>
+                </dd>
+                <dt>numberOfCores</dt>
+                <dd>
+                    <code>number</code> ilość rdzeni do utworzenia.
+                    Liczba musi być większa od zera i powinna nie przekraczać <code>navigator<wbr>.hardware<wbr>Concur<wbr>rency</code>
+                </dd>
+            </dl>
+        </section>
+
+        <section>
+            <h2>Użycie</h2>
+
+            <ol>
+                <li>Wywołaj komendę</li>
+                <li>Zaczekaj na wynik</li>
+            </ol>
+
+            <pre><code>const result = await op.Command("test", 123);</code></pre>
+
+            <p>
+                Możesz wywoływać komendy na różne sposoby:
+            </p>
+
+            <ul>
+                <li>
+                    pojedynczo lub masowo
+                </li>
+                <li>
+                    z podziałem w rdzeniach lub w głównym wątku
+                </li>
+                <li>
+                    zwracając kopię lub mutując oryginał
+                </li>
+            </ul>
+
+            <p>
+                Możesz też przekazać argument decydujący, czy dane polecenie powinno angażować osobne rdzenie.
+                Tym sposobem możesz dynamicznie zmienić podejście w zależności od wielkości danych
+                lub sprawdzić wpływ wielordzeniowości na wydajność.
+            </p>
+
+            <h3>Argumenty metod</h3>
+            <p>Wszystkie 5 dostępnych metod używa tych samych argumentów</p>
+
+            <dl>
+                <dt>command</dt>
+                <dd>
+                    <code>string</code> nazwa funkcji z Twojej kolekcji.
+                </dd>
+
+                <dt>data</dt>
+                <dd>
+                    <code>unknown|unknown[]</code> argument dla funkcji (wykonanie pojedyncze) lub tablica argumentów (wykonanie masowe lub opcja <code>withTransferable</code>).
+                </dd>
+
+                <dt>runOnMainThread</dt>
+                <dd>
+                    <code>boolean = false</code> argument wyłączający rdzenie dla tego wywołania.
+                </dd>
+            </dl>
+
+            <h3>Metody</h3>
+
+            <p>Tryb pojedynczy i cztery tryby masowe.</p>
+
+            <dl>
+                <dt>Command</dt>
+                <dd>
+                    Wybiera rdzeń z najkrótszą kolejką zadań i zleca jedno wykonanie funkcji.
+                    W przypadku użycia <code>withTransferable</code>, używa pierwszego elementu dostarczonej tablicy.
+                </dd>
+
+                <dt>CommandBunch</dt>
+                <dd>
+                    Dzieli pracę na możliwie równe grupy, po czym zleca masową pracę w każdym rdzeniu.
+                    W przypadku użycia <code>withTransferable</code>, funkcja otrzymuje jedno <code>Transferable</code>.
+                    Rezultat zostaje skopiowany do nowej tablicy i dostarczony przez zwrócony <code>Promise</code>.
+                </dd>
+
+                <dt>CommandBunchAndMutate</dt>
+                <dd>
+                    Dzieli pracę na możliwie równe grupy, po czym zleca masową pracę w każdym rdzeniu.
+                    W przypadku użycia <code>withTransferable</code>, funkcja otrzymuje jedno <code>Transferable</code>.
+                    Rezultat zostaje zapisany w oryginalnej tablicy podczas czekania na zwrócony <code>Promise</code>.
+                </dd>
+
+                <dt>CommandBunchSeparately</dt>
+                <dd>
+                    Dzieli pracę na pojedyncze elementy, po czym wielokrotnie zleca pojedynczą pracę w każdym rdzeniu po kolei.
+                    W przypadku użycia <code>withTransferable</code>, funkcja otrzymuje tablicę z jednym <code>Transferable</code>.
+                    Rezultat zostaje skopiowany do nowej tablicy i dostarczony przez zwrócony <code>Promise</code>.
+                </dd>
+
+                <dt>CommandBunchSeparatelyAndMutate</dt>
+                <dd>
+                    Dzieli pracę na pojedyncze elementy, po czym wielokrotnie zleca pojedynczą pracę w każdym rdzeniu po kolei.
+                    W przypadku użycia <code>withTransferable</code>, funkcja otrzymuje tablicę z jednym <code>Transferable</code>.
+                    Rezultat zostaje zapisany w oryginalnej tablicy podczas czekania na zwrócony <code>Promise</code>.
+                </dd>
+            </dl>
+        </section>
+    </article>
+</body>
+</html>

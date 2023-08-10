@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TurboOP</title>
+    <meta name="description" content="Turd-based (object-oriented) OmniProcessor">
+    <link rel="stylesheet" href="./app.css">
+    <link href="https://fonts.googleapis.com/css2?family=Spline+Sans:wght@600&family=Mukta:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body class="home">
+    <article>
+        <header>
+            <h1>T<span>urbo</span>OP</h1>
+            <strong>Wszystkie rdzenie w&nbsp;garści,<br>bez zbędnych komplikacji.</strong>
+            <p>
+                Nie trać czasu na ręczne zarządzanie rdzeniami.
+                To narzędzie jest stworzone dla każdego, aby w&nbsp;pełni wykorzystać potencjał procesora.
+            </p>
+        </header>
+
+        <section>
+            <h2>Czym jest TurboOP?</h2>
+            <p>
+                To biblioteka potrafiąca podzielić pracę na osobne rdzenie procesora.
+                TurboOP kładzie nacisk na prostotę działania i łatwość użycia. 
+            </p>
+
+            <ol>
+                <li>Dodaj kolekcję swoich funkcji</li>
+                <li>Wykonaj wybraną funkcję</li>
+                <li>Odbierz rezultat</li>
+            </ol>
+
+            <strong>Proste, prawda?</strong>
+        </section>
+    </article>
+
+    <article>
+        <header>
+            <h2>Do czego użyć TurboOP?</h2>
+            <strong>
+                Do rzeczy dozwolonych w
+                <a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers" target="_blank">
+                    WebWorkers
+                </a>
+            </strong>
+            <p>
+                WebWorkers API, z którego korzysta TurboOP, posiada swoje ograniczenia.
+                Nie możesz na przykład modyfikować strony, używać <code>window</code> ani przesłać obiektów przez referencje.
+                Całą resztę możesz wrzucić w TurboOP.
+            </p>
+        </header>
+
+        <section>
+            <h3>Możliwe zastosowania</h3>
+            <p>
+                Krótka lista pomysłów kiedy użyć TurboOP.
+            </p>
+
+            <ul>
+                <li>Masowe zapytania do API i generowanie HTML z odpowiedzi</li>
+                <li>Rozkładanie zagnieżdżonych pętli (np. for w for) na osobne rdzenie</li>
+                <li>Konwertowanie jednostek i walut</li>
+                <li>Mockowanie baz danych i API</li>
+                <li>Kolejkowanie poleceń na później (queue)</li>
+                <li>Przyspieszanie metod <code>.filter()</code>, <code>.map()</code>, <code>.forEach()</code> i podobnych</li>
+                <li>Post-processing i generowanie miniaturek zdjęć i filmów</li>
+                <li>Konwertowanie blokujących funkcji na asynchroniczne</li>
+            </ul>
+        </section>
+    </article>
+
+    <article>
+        <header>
+            <h2>Jak używać TurboOP?</h2>
+            <strong>Prosty przykład i porównanie wydajności.</strong>
+            <p>
+                <a href="./docs.html">Przejdź do dokumentacji</a> jeśli ciekawią Cię wszystkie opcje.
+            </p>
+        </header>
+
+        <section>
+            <h3>Twój stary kod</h3>
+
+            <p>
+                To jest Twój przykładowy kod, który robi przykładową pracę (matematykę).
+            </p>
+
+            <pre><code>const doMath = (number) => {
+    return number + 1;
+};
+
+const data = [1, 2, 3];
+for (let i = 0; i < data.length; i++) {
+    data[i] = doMath(data[i]);
+}
+console.log(data);</code></pre>
+        </section>
+
+        <section>
+            <h3>Twój nowy kod</h3>
+            <p>
+                To jest kod, który używa wszystkich rdzeni procesora.
+            </p>
+
+            <pre><code>import TurboOP from "./TurboOP.js";
+
+const doMath = (number) => {
+    return number + 1;
+};
+
+const op = new TurboOP({
+    doMathFaster: { toThread: doMath }
+});
+
+const data = [1, 2, 3];
+await op.CommandBunchAndMutate("doMathFaster", data);
+console.log(data);</code></pre>
+        </section>
+
+        <section>
+            <h3>Różnica</h3>
+            <p>
+                Sprawdź ile szybciej TurboOP działa na Twoim urządzeniu.
+                Test&nbsp;uśrednia 50 wyników trudych obliczeń dla 30 różnych liczb.
+                Każdy wynik powyżej 1 to sukces.
+            </p>
+
+            <form id="bench">
+                <label>
+                    Wynik:
+                    <output id="bench_result">dużo szybciej</output>
+                </label>
+                
+                <button>Sprawdź ponownie</button>
+            </form>
+    
+            <p>Zobacz więcej szczegółów odwiedzając <a href="./tests.html">testy i benchmark</a>.</p>
+        </section>
+    </article>
+
+    <script src="./app.js" type="module"></script>
+</body>
+</html>

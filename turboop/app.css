@@ -1,0 +1,164 @@
+body {
+    margin: 0;
+    text-wrap: balance;
+    font-family: "Mukta", sans-serif;
+    line-height: 1.5;
+    background: var(--bg);
+    color: var(--col_m);
+}
+
+@media (prefers-color-scheme: dark) {
+    body {
+        --bg: #000;
+        --col: #fff;
+        --col_m: #ccc;
+        --col_m2: #aaa;
+        --col_a: #4b7;
+        --col_am: #184;
+    }
+}
+@media (prefers-color-scheme: light) {
+    body {
+        --bg: #eee;
+        --col: #000;
+        --col_m: #333;
+        --col_m2: #444;
+        --col_a: #295;
+        --col_am: #6d9;
+    }
+}
+
+@media (prefers-color-scheme: dark) and (prefers-contrast: more) {
+    body {
+        --bg: #000;
+        --col: #fff;
+        --col_m: #eee;
+        --col_m2: #ddd;
+        --col_a: #5c8;
+        --col_am: #295;
+    }
+}
+@media (prefers-color-scheme: light) and (prefers-contrast: more) {
+    body {
+        --bg: #fff;
+        --col: #000;
+        --col_m: #111;
+        --col_m2: #222;
+        --col_a: #184;
+        --col_am: #5c8;
+    }
+}
+
+header, section {
+    display: grid;
+    grid-template-columns: min(42rem, 100% - 4rem);
+    justify-content: center;
+}
+
+header {
+    padding: 1.5rem 0 0 0;
+}
+
+section {
+    padding: 1.5rem 0;
+}
+
+form,
+label {
+    display: grid;
+    grid-template-columns: 100%;
+    gap: 0.2rem;
+    justify-items: start;
+}
+
+button {
+    background: var(--col_am);
+    color: var(--col);
+    border: unset;
+    padding: 0.6em 1.5em;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+button:hover {
+    background: var(--col_a);
+}
+
+a {
+    color: var(--col_a);
+}
+
+pre {
+    padding: 1.2rem;
+    border: 1px solid;
+    line-height: 1.7;
+    overflow-x: auto;
+}
+code {
+    outline: 1px solid #9999;
+    outline-offset: 0.02rem;
+    padding-inline: 0.15rem;
+}
+pre code {
+    outline: unset;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    margin: 0;
+    font-family: "Spline Sans", sans-serif;
+    font-weight: 600;
+}
+
+h1 {
+    font-size: 3rem;
+    line-height: 1;
+}
+
+@media (max-width: 30rem) {
+    h1 span {
+        font-size: 1rem;
+        letter-spacing: 0.02em;
+        margin-left: -0.5em;
+    }
+}
+
+h2 {
+    font-size: 1.8rem;
+    line-height: 1.1;
+    color: var(--col_m2);
+}
+
+h3 {
+    font-size: 1.5rem;
+    line-height: 1.2;
+    color: var(--col_m2);
+}
+
+strong {
+    margin-top: 0.2em;
+    font-size: 1.2rem;
+}
+
+dl {
+    margin-top: 0
+}
+
+dt {
+    font-weight: bold;
+}
+
+dd + dt {
+    margin-top: 0.4rem;
+}
+
+.home h1 {
+    margin-top: 2rem;
+    font-size: 5rem;
+    color: var(--col_m);
+}
+
+.home h1 ~ p {
+    margin-top: 3rem;
+    margin-bottom: 2rem;
+    max-width: min(100%, 22rem);
+}

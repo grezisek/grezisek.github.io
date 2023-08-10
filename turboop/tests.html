@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="en">
+
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>(tests) TurboOP: Turd-based (object-oriented) OmniProcessor</title>
+        <link rel="stylesheet" href="https://code.jquery.com/qunit/qunit-2.19.4.css" />
+        <style>
+            #qunit-header,
+            #qunit-testrunner-toolbar,
+            #qunit-tests li a {
+                display: none;
+            }
+            #qunit-tests {
+                overflow-x: auto;
+            }
+            @media (prefers-color-scheme: dark) {
+                #qunit {
+                    background: #000;
+                }
+                #qunit-userAgent {
+                    background-color: #09344c;
+                }
+                #qunit-tests b.counts {
+                    color: #34b5ff;
+                }
+                .qunit-assert-list {
+                    background-color: #2e373e;
+                }
+                #qunit-tests .pass {
+                    color: #E2F0F7;
+                    background-color: #161a1d;
+                }
+                #qunit-tests .pass .test-name {
+                    color: #4c87ff;
+                }
+                #qunit-tests li li.pass {
+                    color: #d3ff6b;
+                    background-color: #2e373e;
+                }
+                #qunit-banner.qunit-pass {
+                    background-color: #C6E746;
+                }
+                #qunit-testresult {
+                    color: #E2F0F7;
+                    background-color: #161a1d;
+                }
+                #qunit-testresult a {
+                    color: #4c87ff;
+                }
+            }
+        </style>
+    </head>
+
+    <body>
+        <script src="https://code.jquery.com/qunit/qunit-2.19.4.js"></script>
+        <div id="qunit"></div>
+        <div id="qunit-fixture"></div>
+
+        <script type="module">
+            import TurboOP, { debug } from "./TurboOP.js";
+
+            const mDebugUsageFunctions = {
+                copiedNumber: {
+                    toThread: (data) => {
+                        return data + 1;
+                    },
+                    withTransferable: false
+                },
+                copiedString: {
+                    toThread: (data) => {
+                        data += "b";
+                        return data;
+                    },
+                    withTransferable: false
+                },
+                copiedObject: {
+                    toThread: (data) => {
+                        data.number += 1;
+                        return data;
+                    },
+                    withTransferable: false
+                },
+                transferedNumbers: {
+                    toThread: (data) => {
+                        for (let i = 0; i < data.length; i++) {
+                            data[i] = data[i] + 1;
+                        }
+
+                        return data;
+                    },
+                    withTransferable: true
+                }
+            };
+
+            const mBenchmarkFunctions = {
+                easyCopied: {
+                    toThread: (number) => {
+                        return number + 1;
+                    },
+                    withTransferable: false
+                },
+                easyTransfered: {
+                    toThread: (numbers) => {
+                        for (let i = 0; i < numbers.length; i++) {
+                            numbers[i] = numbers[i] + 1;
+                        }
+
+                        return numbers;
+                    },
+                    withTransferable: true
+                },
+                mediumCopied: {
+                    toThread: (number) => {
+                        for (let _ = 0; _ < 1e3; _++) {
+                            number + (3 / 11) ** Math.random();
+                        }
+
+                        return number + 1;
+                    },
+                    withTransferable: false
+                },
+                mediumTransfered: {
+                    toThread: (numbers) => {
+                        for (let i = 0; i < numbers.length; i++) {
+                            for (let _ = 0; _ < 1e3; _++) {
+                                numbers[i] + (3 / 11) ** Math.random();
+                            }
+
+                            numbers[i] = numbers[i] + 1;
+                        }
+
+                        return numbers;
+                    },
+                    withTransferable: true
+                },
+                hardCopied: {
+                    toThread: (number) => {
+                        for (let _ = 0; _ < 1e4; _++) {
+                            const gc = { number };
+                            gc.number + (3 / 11) ** Math.random()
+                        }
+
+                        return number + 1;
+                    },
+                    withTransferable: false
+                },
+                hardTransfered: {
+                    toThread: (numbers) => {
+                        for (let i = 0; i < numbers.length; i++) {
+                            for (let _ = 0; _ < 1e4; _++) {
+                                const gc = { number: numbers[i] };
+                                gc.number + (3 / 11) ** Math.random()
+                            }
+
+                            numbers[i] = numbers[i] + 1;
+                        }
+
+                        return numbers;
+                    },
+                    withTransferable: true
+                },
+            };
+
+            let mDebugUsageInstance;
+            let mBenchmarkInstance;
+
+            function mBenchmark() {
+                const smallDataSize = 2;
+                const mediumDataSize = 2 ** 6;
+                const bigDataSize = 2 ** 12;
+                const chunkSize = 2 ** 4;
+
+                const averageFrom = 5;
+
+                let syncBenchmark;
+
+                QUnit.module("easy", () => {
+                    QUnit.test("One transfered", async assert => {
+                        syncBenchmark = assert.async();
+                        const data = [1];
+                        const dataToTransfer = new Array(averageFrom).fill(null)
+                            .map(_ => [new Float64Array(data).buffer]);
+
+                        let result;
+                        let i;
+                        let timestamp;
+
+                        i = 0;
+                        timestamp = performance.now();
+                        for (; i < averageFrom; i++) {
+                            result = mBenchmarkInstance.Command("easyTransfered", dataToTransfer[i]);
+                        }
+                        result = new Float64Array((await result)[0]);
+                        assert.equal(result[0], 2, `TurboOP: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+
+                        i = 0;
+                        timestamp = performance.now();
+                        for (; i < averageFrom; i++) {
+                            result = mBenchmarkFunctions.easyTransfered.toThread(data);
+                            result[0]--;
+                        }
+                        assert.equal(result[0], data[0], `normal: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+                        syncBenchmark();
+                    });
+
+                    QUnit.test("Small bunch copied", async assert => {
+                        syncBenchmark = assert.async();
+                        const data = new Array(smallDataSize).fill(1);
+                        const expected = new Array(smallDataSize).fill(2);
+                        let result;
+                        let i;
+                        let timestamp;
+
+                        i = 0;
+                        timestamp = performance.now();
+                        for (; i < averageFrom; i++) {
+                            result = mBenchmarkInstance.CommandBunch("easyCopied", data);
+                        }
+                        assert.deepEqual(await result, expected, `TurboOP: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+
+                        result = new Array(smallDataSize);
+                        i = 0;
+                        let ii = 0;
+                        timestamp = performance.now();
+                        for (; ii < smallDataSize; ii++) {
+                            for (; i < averageFrom; i++) {
+                                result[ii] = mBenchmarkFunctions.easyCopied.toThread(data[ii]);
+                            }
+                            i = 0;
+                        }
+                        assert.deepEqual(result, expected, `normal: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+                        syncBenchmark();
+                    });
+
+                    QUnit.test("Small bunch transfered", async assert => {
+                        syncBenchmark = assert.async();
+                        const data = new Array(smallDataSize).fill(1);
+                        const expected = new Array(smallDataSize).fill(2);
+                        const dataToTransfer = new Array(averageFrom).fill(null)
+                            .map(_ => [new Float64Array(data).buffer]);
+                        const expectedTransfered = new Float64Array(expected);
+
+                        let result;
+                        let i;
+                        let timestamp;
+
+                        i = 0;
+                        timestamp = performance.now();
+                        for (; i < averageFrom; i++) {
+                            result = new Float64Array((await mBenchmarkInstance.Command("easyTransfered", dataToTransfer[i]))[0]);
+                        }
+                        assert.deepEqual(result, expectedTransfered, `TurboOP: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+
+                        result = new Array(smallDataSize);
+                        i = 0;
+                        let ii = 0;
+                        timestamp = performance.now();
+                        for (; ii < smallDataSize; ii++) {
+                            for (; i < averageFrom; i++) {
+                                result[ii] = mBenchmarkFunctions.easyCopied.toThread(data[ii]);
+                            }
+                            i = 0;
+                        }
+                        assert.deepEqual(result, expected, `normal: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+                        syncBenchmark();
+                    });
+
+                    QUnit.test("Medium bunch copied", async assert => {
+                        syncBenchmark = assert.async();
+                        const data = new Array(mediumDataSize).fill(1);
+                        const expected = new Array(mediumDataSize).fill(2);
+                        let result;
+                        let i;
+                        let timestamp;
+
+                        i = 0;
+                        timestamp = performance.now();
+                        for (; i < averageFrom; i++) {
+                            result = mBenchmarkInstance.CommandBunch("easyCopied", data);
+                        }
+                        assert.deepEqual(await result, expected, `TurboOP: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+
+                        result = new Array(mediumDataSize);
+                        i = 0;
+                        let ii = 0;
+                        timestamp = performance.now();
+                        for (; ii < mediumDataSize; ii++) {
+                            for (; i < averageFrom; i++) {
+                                result[ii] = mBenchmarkFunctions.easyCopied.toThread(data[ii]);
+                            }
+                            i = 0;
+                        }
+                        assert.deepEqual(result, expected, `normal: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+                        syncBenchmark();
+                    });
+
+                    QUnit.test("Medium bunch transfered", async assert => {
+                        syncBenchmark = assert.async();
+                        const data = new Array(mediumDataSize).fill(1);
+                        const expected = new Array(mediumDataSize).fill(2);
+                        const dataToTransfer = new Array(averageFrom).fill(null).map((_, i) => {
+                            const ret = [];
+                            for (let i = 0; i < mediumDataSize; i += chunkSize) {
+                                ret.push(new Float64Array(chunkSize).fill(1).buffer);
+                            }
+                            return ret;
+                        });
+                        const expectedTransfered = [];
+                        for (let i = 0; i < mediumDataSize; i += chunkSize) {
+                            expectedTransfered.push(new Float64Array(chunkSize).fill(2));
+                        }
+
+                        let result;
+                        let i;
+                        let timestamp;
+
+                        i = 0;
+                        timestamp = performance.now();
+                        for (; i < averageFrom; i++) {
+                            result = mBenchmarkInstance.CommandBunch("easyTransfered", dataToTransfer[i]);
+                        }
+                        result = await result;
+                        i = 0;
+                        for (; i < result.length; i++) {
+                            result[i] = new Float64Array(result[i]);
+                        }
+                        assert.deepEqual(result, expectedTransfered, `TurboOP: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+
+
+                        result = new Array(mediumDataSize);
+                        i = 0;
+                        let ii = 0;
+                        timestamp = performance.now();
+                        for (; ii < mediumDataSize; ii++) {
+                            for (; i < averageFrom; i++) {
+                                result[ii] = mBenchmarkFunctions.easyCopied.toThread(data[ii]);
+                            }
+                            i = 0;
+                        }
+                        assert.deepEqual(result, expected, `normal: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+                        syncBenchmark();
+                    });
+
+                    QUnit.test("Big bunch copied", async assert => {
+                        syncBenchmark = assert.async();
+                        const data = new Array(bigDataSize).fill(1);
+                        const expected = new Array(bigDataSize).fill(2);
+                        let result;
+                        let i;
+                        let timestamp;
+
+                        i = 0;
+                        timestamp = performance.now();
+                        for (; i < averageFrom; i++) {
+                            result = mBenchmarkInstance.CommandBunch("easyCopied", data);
+                        }
+                        assert.deepEqual(await result, expected, `TurboOP: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+
+                        result = new Array(bigDataSize);
+                        i = 0;
+                        let ii = 0;
+                        timestamp = performance.now();
+                        for (; ii < bigDataSize; ii++) {
+                            for (; i < averageFrom; i++) {
+                                result[ii] = mBenchmarkFunctions.easyCopied.toThread(data[ii]);
+                            }
+                            i = 0;
+                        }
+                        assert.deepEqual(result, expected, `normal: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+                        syncBenchmark();
+                    });
+
+                    QUnit.test("Big bunch transfered", async assert => {
+                        syncBenchmark = assert.async();
+                        const data = new Array(bigDataSize).fill(1);
+                        const expected = new Array(bigDataSize).fill(2);
+                        const dataToTransfer = new Array(averageFrom).fill(null).map((_, i) => {
+                            const ret = [];
+                            for (let i = 0; i < bigDataSize; i += chunkSize) {
+                                ret.push(new Float64Array(chunkSize).fill(1).buffer);
+                            }
+                            return ret;
+                        });
+                        const expectedTransfered = [];
+                        for (let i = 0; i < bigDataSize; i += chunkSize) {
+                            expectedTransfered.push(new Float64Array(chunkSize).fill(2));
+                        }
+
+                        let result;
+                        let i;
+                        let timestamp;
+
+                        i = 0;
+                        timestamp = performance.now();
+                        for (; i < averageFrom; i++) {
+                            result = mBenchmarkInstance.CommandBunch("easyTransfered", dataToTransfer[i]);
+                        }
+                        result = await result;
+                        i = 0;
+                        for (; i < result.length; i++) {
+                            result[i] = new Float64Array(result[i]);
+                        }
+                        assert.deepEqual(result, expectedTransfered, `TurboOP: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+
+
+                        result = new Array(bigDataSize);
+                        i = 0;
+                        let ii = 0;
+                        timestamp = performance.now();
+                        for (; ii < bigDataSize; ii++) {
+                            for (; i < averageFrom; i++) {
+                                result[ii] = mBenchmarkFunctions.easyCopied.toThread(data[ii]);
+                            }
+                            i = 0;
+                        }
+                        assert.deepEqual(result, expected, `normal: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+                        syncBenchmark();
+                    });
+                });
+                QUnit.module("medium", () => {
+                    QUnit.test("One copied", async assert => {
+                        syncBenchmark = assert.async();
+                        const data = 1;
+                        let result;
+                        let i;
+                        let timestamp;
+
+                        i = 0;
+                        timestamp = performance.now();
+                        for (; i < averageFrom; i++) {
+                            result = mBenchmarkInstance.Command("mediumCopied", data);
+                        }
+                        assert.equal(await result, 2, `TurboOP: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+
+                        i = 0;
+                        timestamp = performance.now();
+                        for (; i < averageFrom; i++) {
+                            result = mBenchmarkFunctions.mediumCopied.toThread(data);
+                        }
+                        assert.equal(result, 2, `normal: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+                        syncBenchmark();
+                    });
+
+                    QUnit.test("One transfered", async assert => {
+                        syncBenchmark = assert.async();
+                        const data = [1];
+                        const dataToTransfer = new Array(averageFrom).fill(null)
+                            .map(_ => [new Float64Array(data).buffer]);
+
+                        let result;
+                        let i;
+                        let timestamp;
+
+                        i = 0;
+                        timestamp = performance.now();
+                        for (; i < averageFrom; i++) {
+                            result = mBenchmarkInstance.Command("mediumTransfered", dataToTransfer[i]);
+                        }
+                        result = new Float64Array((await result)[0]);
+                        assert.equal(result[0], 2, `TurboOP: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+
+                        i = 0;
+                        timestamp = performance.now();
+                        for (; i < averageFrom; i++) {
+                            result = mBenchmarkFunctions.mediumTransfered.toThread(data);
+                            result[0]--;
+                        }
+                        assert.equal(result[0], data[0], `normal: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+                        syncBenchmark();
+                    });
+
+                    QUnit.test("Small bunch copied", async assert => {
+                        syncBenchmark = assert.async();
+                        const data = new Array(smallDataSize).fill(1);
+                        const expected = new Array(smallDataSize).fill(2);
+                        let result;
+                        let i;
+                        let timestamp;
+
+                        i = 0;
+                        timestamp = performance.now();
+                        for (; i < averageFrom; i++) {
+                            result = mBenchmarkInstance.CommandBunch("mediumCopied", data);
+                        }
+                        assert.deepEqual(await result, expected, `TurboOP: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+
+                        result = new Array(smallDataSize);
+                        i = 0;
+                        let ii = 0;
+                        timestamp = performance.now();
+                        for (; ii < smallDataSize; ii++) {
+                            for (; i < averageFrom; i++) {
+                                result[ii] = mBenchmarkFunctions.mediumCopied.toThread(data[ii]);
+                            }
+                            i = 0;
+                        }
+                        assert.deepEqual(result, expected, `normal: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+                        syncBenchmark();
+                    });
+
+                    QUnit.test("Small bunch transfered", async assert => {
+                        syncBenchmark = assert.async();
+                        const data = new Array(smallDataSize).fill(1);
+                        const expected = new Array(smallDataSize).fill(2);
+                        const dataToTransfer = new Array(averageFrom).fill(null)
+                            .map(_ => [new Float64Array(data).buffer]);
+                        const expectedTransfered = new Float64Array(expected);
+
+                        let result;
+                        let i;
+                        let timestamp;
+
+                        i = 0;
+                        timestamp = performance.now();
+                        for (; i < averageFrom; i++) {
+                            result = new Float64Array((await mBenchmarkInstance.Command("mediumTransfered", dataToTransfer[i]))[0]);
+                        }
+                        assert.deepEqual(result, expectedTransfered, `TurboOP: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+
+                        result = new Array(smallDataSize);
+                        i = 0;
+                        let ii = 0;
+                        timestamp = performance.now();
+                        for (; ii < smallDataSize; ii++) {
+                            for (; i < averageFrom; i++) {
+                                result[ii] = mBenchmarkFunctions.mediumCopied.toThread(data[ii]);
+                            }
+                            i = 0;
+                        }
+                        assert.deepEqual(result, expected, `normal: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+                        syncBenchmark();
+                    });
+
+                    QUnit.test("Medium bunch copied", async assert => {
+                        syncBenchmark = assert.async();
+                        const data = new Array(mediumDataSize).fill(1);
+                        const expected = new Array(mediumDataSize).fill(2);
+                        let result;
+                        let i;
+                        let timestamp;
+
+                        i = 0;
+                        timestamp = performance.now();
+                        for (; i < averageFrom; i++) {
+                            result = mBenchmarkInstance.CommandBunch("mediumCopied", data);
+                        }
+                        assert.deepEqual(await result, expected, `TurboOP: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+
+                        result = new Array(mediumDataSize);
+                        i = 0;
+                        let ii = 0;
+                        timestamp = performance.now();
+                        for (; ii < mediumDataSize; ii++) {
+                            for (; i < averageFrom; i++) {
+                                result[ii] = mBenchmarkFunctions.mediumCopied.toThread(data[ii]);
+                            }
+                            i = 0;
+                        }
+                        assert.deepEqual(result, expected, `normal: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+                        syncBenchmark();
+                    });
+
+                    QUnit.test("Medium bunch transfered", async assert => {
+                        syncBenchmark = assert.async();
+                        const data = new Array(mediumDataSize).fill(1);
+                        const expected = new Array(mediumDataSize).fill(2);
+                        const dataToTransfer = new Array(averageFrom).fill(null).map((_, i) => {
+                            const ret = [];
+                            for (let i = 0; i < mediumDataSize; i += chunkSize) {
+                                ret.push(new Float64Array(chunkSize).fill(1).buffer);
+                            }
+                            return ret;
+                        });
+                        const expectedTransfered = [];
+                        for (let i = 0; i < mediumDataSize; i += chunkSize) {
+                            expectedTransfered.push(new Float64Array(chunkSize).fill(2));
+                        }
+
+                        let result;
+                        let i;
+                        let timestamp;
+
+                        i = 0;
+                        timestamp = performance.now();
+                        for (; i < averageFrom; i++) {
+                            result = mBenchmarkInstance.CommandBunch("mediumTransfered", dataToTransfer[i]);
+                        }
+                        result = await result;
+                        i = 0;
+                        for (; i < result.length; i++) {
+                            result[i] = new Float64Array(result[i]);
+                        }
+                        assert.deepEqual(result, expectedTransfered, `TurboOP: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+
+
+                        result = new Array(mediumDataSize);
+                        i = 0;
+                        let ii = 0;
+                        timestamp = performance.now();
+                        for (; ii < mediumDataSize; ii++) {
+                            for (; i < averageFrom; i++) {
+                                result[ii] = mBenchmarkFunctions.mediumCopied.toThread(data[ii]);
+                            }
+                            i = 0;
+                        }
+                        assert.deepEqual(result, expected, `normal: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+                        syncBenchmark();
+                    });
+
+                    QUnit.test("Big bunch copied", async assert => {
+                        syncBenchmark = assert.async();
+                        const data = new Array(bigDataSize).fill(1);
+                        const expected = new Array(bigDataSize).fill(2);
+                        let result;
+                        let i;
+                        let timestamp;
+
+                        i = 0;
+                        timestamp = performance.now();
+                        for (; i < averageFrom; i++) {
+                            result = mBenchmarkInstance.CommandBunch("mediumCopied", data);
+                        }
+                        assert.deepEqual(await result, expected, `TurboOP: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+
+                        result = new Array(bigDataSize);
+                        i = 0;
+                        let ii = 0;
+                        timestamp = performance.now();
+                        for (; ii < bigDataSize; ii++) {
+                            for (; i < averageFrom; i++) {
+                                result[ii] = mBenchmarkFunctions.mediumCopied.toThread(data[ii]);
+                            }
+                            i = 0;
+                        }
+                        assert.deepEqual(result, expected, `normal: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+                        syncBenchmark();
+                    });
+
+                    QUnit.test("Big bunch transfered", async assert => {
+                        syncBenchmark = assert.async();
+                        const data = new Array(bigDataSize).fill(1);
+                        const expected = new Array(bigDataSize).fill(2);
+                        const dataToTransfer = new Array(averageFrom).fill(null).map((_, i) => {
+                            const ret = [];
+                            for (let i = 0; i < bigDataSize; i += chunkSize) {
+                                ret.push(new Float64Array(chunkSize).fill(1).buffer);
+                            }
+                            return ret;
+                        });
+                        const expectedTransfered = [];
+                        for (let i = 0; i < bigDataSize; i += chunkSize) {
+                            expectedTransfered.push(new Float64Array(chunkSize).fill(2));
+                        }
+
+                        let result;
+                        let i;
+                        let timestamp;
+
+                        i = 0;
+                        timestamp = performance.now();
+                        for (; i < averageFrom; i++) {
+                            result = mBenchmarkInstance.CommandBunch("mediumTransfered", dataToTransfer[i]);
+                        }
+                        result = await result;
+                        i = 0;
+                        for (; i < result.length; i++) {
+                            result[i] = new Float64Array(result[i]);
+                        }
+                        assert.deepEqual(result, expectedTransfered, `TurboOP: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+
+
+                        result = new Array(bigDataSize);
+                        i = 0;
+                        let ii = 0;
+                        timestamp = performance.now();
+                        for (; ii < bigDataSize; ii++) {
+                            for (; i < averageFrom; i++) {
+                                result[ii] = mBenchmarkFunctions.mediumCopied.toThread(data[ii]);
+                            }
+                            i = 0;
+                        }
+                        assert.deepEqual(result, expected, `normal: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+                        syncBenchmark();
+                    });
+                });
+                QUnit.module("hard", () => {
+                    QUnit.test("One copied", async assert => {
+                        syncBenchmark = assert.async();
+                        const data = 1;
+                        let result;
+                        let i;
+                        let timestamp;
+
+                        i = 0;
+                        timestamp = performance.now();
+                        for (; i < averageFrom; i++) {
+                            result = mBenchmarkInstance.Command("hardCopied", data);
+                        }
+                        assert.equal(await result, 2, `TurboOP: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+
+                        i = 0;
+                        timestamp = performance.now();
+                        for (; i < averageFrom; i++) {
+                            result = mBenchmarkFunctions.hardCopied.toThread(data);
+                        }
+                        assert.equal(result, 2, `normal: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+                        syncBenchmark();
+                    });
+
+                    QUnit.test("One transfered", async assert => {
+                        syncBenchmark = assert.async();
+                        const data = [1];
+                        const dataToTransfer = new Array(averageFrom).fill(null)
+                            .map(_ => [new Float64Array(data).buffer]);
+
+                        let result;
+                        let i;
+                        let timestamp;
+
+                        i = 0;
+                        timestamp = performance.now();
+                        for (; i < averageFrom; i++) {
+                            result = mBenchmarkInstance.Command("hardTransfered", dataToTransfer[i]);
+                        }
+                        result = new Float64Array((await result)[0]);
+                        assert.equal(result[0], 2, `TurboOP: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+
+                        i = 0;
+                        timestamp = performance.now();
+                        for (; i < averageFrom; i++) {
+                            result = mBenchmarkFunctions.hardTransfered.toThread(data);
+                            result[0]--;
+                        }
+                        assert.equal(result[0], data[0], `normal: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+                        syncBenchmark();
+                    });
+
+                    QUnit.test("Small bunch copied", async assert => {
+                        syncBenchmark = assert.async();
+                        const data = new Array(smallDataSize).fill(1);
+                        const expected = new Array(smallDataSize).fill(2);
+                        let result;
+                        let i;
+                        let timestamp;
+
+                        i = 0;
+                        timestamp = performance.now();
+                        for (; i < averageFrom; i++) {
+                            result = mBenchmarkInstance.CommandBunch("hardCopied", data);
+                        }
+                        assert.deepEqual(await result, expected, `TurboOP: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+
+                        result = new Array(smallDataSize);
+                        i = 0;
+                        let ii = 0;
+                        timestamp = performance.now();
+                        for (; ii < smallDataSize; ii++) {
+                            for (; i < averageFrom; i++) {
+                                result[ii] = mBenchmarkFunctions.hardCopied.toThread(data[ii]);
+                            }
+                            i = 0;
+                        }
+                        assert.deepEqual(result, expected, `normal: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+                        syncBenchmark();
+                    });
+
+                    QUnit.test("Small bunch transfered", async assert => {
+                        syncBenchmark = assert.async();
+                        const data = new Array(smallDataSize).fill(1);
+                        const expected = new Array(smallDataSize).fill(2);
+                        const dataToTransfer = new Array(averageFrom).fill(null)
+                            .map(_ => [new Float64Array(data).buffer]);
+                        const expectedTransfered = new Float64Array(expected);
+
+                        let result;
+                        let i;
+                        let timestamp;
+
+                        i = 0;
+                        timestamp = performance.now();
+                        for (; i < averageFrom; i++) {
+                            result = new Float64Array((await mBenchmarkInstance.Command("hardTransfered", dataToTransfer[i]))[0]);
+                        }
+                        assert.deepEqual(result, expectedTransfered, `TurboOP: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+
+                        result = new Array(smallDataSize);
+                        i = 0;
+                        let ii = 0;
+                        timestamp = performance.now();
+                        for (; ii < smallDataSize; ii++) {
+                            for (; i < averageFrom; i++) {
+                                result[ii] = mBenchmarkFunctions.hardCopied.toThread(data[ii]);
+                            }
+                            i = 0;
+                        }
+                        assert.deepEqual(result, expected, `normal: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+                        syncBenchmark();
+                    });
+
+                    QUnit.test("Medium bunch copied", async assert => {
+                        syncBenchmark = assert.async();
+                        const data = new Array(mediumDataSize).fill(1);
+                        const expected = new Array(mediumDataSize).fill(2);
+                        let result;
+                        let i;
+                        let timestamp;
+
+                        i = 0;
+                        timestamp = performance.now();
+                        for (; i < averageFrom; i++) {
+                            result = mBenchmarkInstance.CommandBunch("hardCopied", data);
+                        }
+                        assert.deepEqual(await result, expected, `TurboOP: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+
+                        result = new Array(mediumDataSize);
+                        i = 0;
+                        let ii = 0;
+                        timestamp = performance.now();
+                        for (; ii < mediumDataSize; ii++) {
+                            for (; i < averageFrom; i++) {
+                                result[ii] = mBenchmarkFunctions.hardCopied.toThread(data[ii]);
+                            }
+                            i = 0;
+                        }
+                        assert.deepEqual(result, expected, `normal: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+                        syncBenchmark();
+                    });
+
+                    QUnit.test("Medium bunch transfered", async assert => {
+                        syncBenchmark = assert.async();
+                        const data = new Array(mediumDataSize).fill(1);
+                        const expected = new Array(mediumDataSize).fill(2);
+                        const dataToTransfer = new Array(averageFrom).fill(null).map((_, i) => {
+                            const ret = [];
+                            for (let i = 0; i < mediumDataSize; i += chunkSize) {
+                                ret.push(new Float64Array(chunkSize).fill(1).buffer);
+                            }
+                            return ret;
+                        });
+                        const expectedTransfered = [];
+                        for (let i = 0; i < mediumDataSize; i += chunkSize) {
+                            expectedTransfered.push(new Float64Array(chunkSize).fill(2));
+                        }
+
+                        let result;
+                        let i;
+                        let timestamp;
+
+                        i = 0;
+                        timestamp = performance.now();
+                        for (; i < averageFrom; i++) {
+                            result = mBenchmarkInstance.CommandBunch("hardTransfered", dataToTransfer[i]);
+                        }
+                        result = await result;
+                        i = 0;
+                        for (; i < result.length; i++) {
+                            result[i] = new Float64Array(result[i]);
+                        }
+                        assert.deepEqual(result, expectedTransfered, `TurboOP: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+
+
+                        result = new Array(mediumDataSize);
+                        i = 0;
+                        let ii = 0;
+                        timestamp = performance.now();
+                        for (; ii < mediumDataSize; ii++) {
+                            for (; i < averageFrom; i++) {
+                                result[ii] = mBenchmarkFunctions.hardCopied.toThread(data[ii]);
+                            }
+                            i = 0;
+                        }
+                        assert.deepEqual(result, expected, `normal: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+                        syncBenchmark();
+                    });
+
+                    QUnit.test("Big bunch copied", async assert => {
+                        syncBenchmark = assert.async();
+                        const data = new Array(bigDataSize).fill(1);
+                        const expected = new Array(bigDataSize).fill(2);
+                        let result;
+                        let i;
+                        let timestamp;
+
+                        i = 0;
+                        timestamp = performance.now();
+                        for (; i < averageFrom; i++) {
+                            result = mBenchmarkInstance.CommandBunch("hardCopied", data);
+                        }
+                        assert.deepEqual(await result, expected, `TurboOP: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+
+                        result = new Array(bigDataSize);
+                        i = 0;
+                        let ii = 0;
+                        timestamp = performance.now();
+                        for (; ii < bigDataSize; ii++) {
+                            for (; i < averageFrom; i++) {
+                                result[ii] = mBenchmarkFunctions.hardCopied.toThread(data[ii]);
+                            }
+                            i = 0;
+                        }
+                        assert.deepEqual(result, expected, `normal: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+                        syncBenchmark();
+                    });
+
+                    QUnit.test("Big bunch transfered", async assert => {
+                        syncBenchmark = assert.async();
+                        const data = new Array(bigDataSize).fill(1);
+                        const expected = new Array(bigDataSize).fill(2);
+                        const dataToTransfer = new Array(averageFrom).fill(null).map((_, i) => {
+                            const ret = [];
+                            for (let i = 0; i < bigDataSize; i += chunkSize) {
+                                ret.push(new Float64Array(chunkSize).fill(1).buffer);
+                            }
+                            return ret;
+                        });
+                        const expectedTransfered = [];
+                        for (let i = 0; i < bigDataSize; i += chunkSize) {
+                            expectedTransfered.push(new Float64Array(chunkSize).fill(2));
+                        }
+
+                        let result;
+                        let i;
+                        let timestamp;
+
+                        i = 0;
+                        timestamp = performance.now();
+                        for (; i < averageFrom; i++) {
+                            result = mBenchmarkInstance.CommandBunch("hardTransfered", dataToTransfer[i]);
+                        }
+                        result = await result;
+                        i = 0;
+                        for (; i < result.length; i++) {
+                            result[i] = new Float64Array(result[i]);
+                        }
+                        assert.deepEqual(result, expectedTransfered, `TurboOP: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+
+
+                        result = new Array(bigDataSize);
+                        i = 0;
+                        let ii = 0;
+                        timestamp = performance.now();
+                        for (; ii < bigDataSize; ii++) {
+                            for (; i < averageFrom; i++) {
+                                result[ii] = mBenchmarkFunctions.hardCopied.toThread(data[ii]);
+                            }
+                            i = 0;
+                        }
+                        assert.deepEqual(result, expected, `normal: ${(performance.now() - timestamp) / averageFrom}ms avg`);
+                        syncBenchmark();
+                    });
+                });
+            }
+
+            function mDebug() {
+                const mDebugUsageConf = {
+                    after: () => mDebugUsageInstance.Destroy()
+                };
+
+                QUnit.module("lifecycle", mDebugLifecycle);
+                QUnit.module("usage", mDebugUsageConf, mDebugUsage);
+                QUnit.module("options", mDebugOptions);
+            }
+
+            function mDebugLifecycle() {
+                QUnit.test("TurboOPWorker", assert => {
+                    let worker;
+                    let result;
+
+                    result = true;
+                    try {
+                        worker = new debug.TurboOPWorker("");
+                    } catch (error) {
+                        result = error;
+                    }
+                    assert.true(result, "created");
+
+                    result = true;
+                    try {
+                        worker.Terminate();
+                    } catch (error) {
+                        result = error;
+                    }
+                    assert.true(result, "destroyed");
+                });
+
+                QUnit.test("TurboOPCore", assert => {
+                    let core;
+                    let result;
+
+                    result = true;
+                    try {
+                        core = new debug.TurboOPCore({}, "", "");
+                    } catch (error) {
+                        result = error;
+                    }
+                    assert.true(result, "created");
+
+                    result = true;
+                    try {
+                        core.Destroy();
+                    } catch (error) {
+                        result = error;
+                    }
+                    assert.true(result, "destroyed");
+                });
+
+                QUnit.test("TurboOP", assert => {
+                    let instance;
+                    let result;
+
+                    result = true;
+                    try {
+                        instance = new TurboOP({});
+                    } catch (error) {
+                        result = error;
+                    }
+                    assert.true(result, "created");
+
+                    result = true;
+                    try {
+                        instance.Destroy();
+                    } catch (error) {
+                        result = error;
+                    }
+                    assert.true(result, "destroyed");
+                });
+            }
+
+            function mDebugUsage() {
+                mDebugUsageInstance = new TurboOP(mDebugUsageFunctions);
+
+                QUnit.test("Command", async assert => {
+                    let result = await mDebugUsageInstance.Command("copiedNumber", 1);
+                    assert.equal(result, 2, "number");
+
+                    result = await mDebugUsageInstance.Command("copiedString", "a");
+                    assert.equal(result, "ab", "string");
+
+                    result = await mDebugUsageInstance.Command("copiedObject", { number: 1 });
+                    assert.equal(result.number, 2, "object");
+
+                    result = await mDebugUsageInstance.Command("transferedNumbers", [new Float64Array([1]).buffer]);
+                    assert.equal(new Float64Array(result[0])[0], 2, "transferable");
+                });
+
+                QUnit.test("CommandBunch", async assert => {
+                    let result = await mDebugUsageInstance.CommandBunch("copiedNumber", [1, 1]);
+                    assert.deepEqual(result, [2, 2], "array of numbers");
+
+                    result = await mDebugUsageInstance.CommandBunch("copiedString", ["a", "a"]);
+                    assert.deepEqual(result, ["ab", "ab"], "array of strings");
+
+                    result = await mDebugUsageInstance.CommandBunch("copiedObject", [{ number: 1 }, { number: 1 }]);
+                    assert.deepEqual(result, [{ number: 2 }, { number: 2 }], "array of objects");
+
+                    result = await mDebugUsageInstance.CommandBunch("transferedNumbers", [new Float64Array([1]).buffer, new Float64Array([1]).buffer]);
+                    assert.deepEqual([new Float64Array(result[0]), new Float64Array(result[1])], [new Float64Array([2]), new Float64Array([2])], "array of transferables");
+                });
+
+                QUnit.test("CommandBunchAndMutate", async assert => {
+                    let result = [1, 1];
+                    await mDebugUsageInstance.CommandBunchAndMutate("copiedNumber", result);
+                    assert.deepEqual(result, [2, 2], "array of numbers");
+
+                    result = ["a", "a"];
+                    await mDebugUsageInstance.CommandBunchAndMutate("copiedString", result);
+                    assert.deepEqual(result, ["ab", "ab"], "array of strings");
+
+                    result = [{ number: 1 }, { number: 1 }]
+                    await mDebugUsageInstance.CommandBunchAndMutate("copiedObject", result);
+                    assert.deepEqual(result, [{ number: 2 }, { number: 2 }], "array of objects");
+
+                    result = [new Float64Array([1]).buffer, new Float64Array([1]).buffer];
+                    await mDebugUsageInstance.CommandBunchAndMutate("transferedNumbers", result);
+                    assert.deepEqual([new Float64Array(result[0]), new Float64Array(result[1])], [new Float64Array([2]), new Float64Array([2])], "array of transferables");
+                });
+
+                QUnit.test("CommandBunchSeparately", async assert => {
+                    let result = await mDebugUsageInstance.CommandBunchSeparately("copiedNumber", [1, 1]);
+                    assert.deepEqual(result, [2, 2], "each of numbers");
+
+                    result = await mDebugUsageInstance.CommandBunchSeparately("copiedString", ["a", "a"]);
+                    assert.deepEqual(result, ["ab", "ab"], "each of strings");
+
+                    result = await mDebugUsageInstance.CommandBunchSeparately("copiedObject", [{ number: 1 }, { number: 1 }]);
+                    assert.deepEqual(result, [{ number: 2 }, { number: 2 }], "each of objects");
+
+                    result = await mDebugUsageInstance.CommandBunchSeparately("transferedNumbers", [[new Float64Array([1]).buffer], [new Float64Array([1]).buffer]]);
+                    assert.deepEqual([new Float64Array(result[0][0]), new Float64Array(result[1][0])], [new Float64Array([2]), new Float64Array([2])], "each of transferables");
+                });
+
+                QUnit.test("CommandBunchSeparatelyAndMutate", async assert => {
+                    let result = [1, 1];
+                    await mDebugUsageInstance.CommandBunchSeparatelyAndMutate("copiedNumber", result);
+                    assert.deepEqual(result, [2, 2], "each of numbers");
+
+                    result = ["a", "a"];
+                    await mDebugUsageInstance.CommandBunchSeparatelyAndMutate("copiedString", result);
+                    assert.deepEqual(result, ["ab", "ab"], "each of strings");
+
+                    result = [{ number: 1 }, { number: 1 }]
+                    await mDebugUsageInstance.CommandBunchSeparatelyAndMutate("copiedObject", result);
+                    assert.deepEqual(result, [{ number: 2 }, { number: 2 }], "each of objects");
+
+                    result = [[new Float64Array([1]).buffer], [new Float64Array([1]).buffer]];
+                    await mDebugUsageInstance.CommandBunchSeparatelyAndMutate("transferedNumbers", result);
+                    assert.deepEqual([new Float64Array(result[0][0]), new Float64Array(result[1][0])], [new Float64Array([2]), new Float64Array([2])], "each of transferables");
+                });
+            }
+
+            function mDebugOptions() {
+                QUnit.test("cores", assert => {
+                    let instance = new TurboOP({}, 0);
+                    assert.equal(instance.cores, 0, "no cores");
+                    instance.Destroy();
+
+                    instance = new TurboOP({}, 2);
+                    assert.equal(instance.cores, 2, "normal amount of cores (2)");
+                    instance.Destroy();
+
+                    instance = new TurboOP({}, 512);
+                    assert.equal(instance.cores, 512, "absurd amount of cores (512)");
+                    instance.Destroy();
+                });
+            }
+
+
+            const RunDebugModule = (mDebugConf) => {
+                QUnit.module("debug", mDebugConf, mDebug);
+            };
+
+            const RunBenchmarkModule = async () => {
+                mBenchmarkInstance = new TurboOP(mBenchmarkFunctions);
+
+                // preheat the connection (first benchmark is slower without it)
+                await mBenchmarkInstance.Command("easyCopied", 1);
+                await mBenchmarkInstance.Command("easyCopied", 1);
+                await mBenchmarkInstance.Command("easyCopied", 1);
+
+                QUnit.module("benchmark", mBenchmark);
+            };
+
+            RunDebugModule({ after: RunBenchmarkModule });
+        </script>
+    </body>
+</html>
