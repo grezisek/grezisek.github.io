@@ -1,0 +1,126 @@
+<!DOCTYPE html><html lang="pl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>5. Generator - Asyn&shy;chro&shy;niczny js - Grezisek</title><meta name="description" content="Wyjaśniam korzystanie z generatorów w asynchronicznym JavaScript."><style>@font-face{font-family:Aleo;font-style:normal;font-weight:700;font-display:swap;src:url(https://fonts.gstatic.com/s/aleo/v14/c4mv1nF8G8_swAPJ0Q1o.woff2) format('woff2');unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20CF,U+2113,U+2C60-2C7F,U+A720-A7FF}@font-face{font-family:Aleo;font-style:normal;font-weight:700;font-display:swap;src:url(https://fonts.gstatic.com/s/aleo/v14/c4mv1nF8G8_swA3J0Q.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}@font-face{font-family:Comme;font-style:normal;font-weight:400;font-display:swap;src:url(https://fonts.gstatic.com/s/comme/v2/8QIHdirKhMbn-su3uI0crg.woff2) format('woff2');unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20CF,U+2113,U+2C60-2C7F,U+A720-A7FF}@font-face{font-family:Comme;font-style:normal;font-weight:400;font-display:swap;src:url(https://fonts.gstatic.com/s/comme/v2/8QIHdirKhMbn-su5uI0.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}@font-face{font-family:Comme;font-style:normal;font-weight:700;font-display:swap;src:url(https://fonts.gstatic.com/s/comme/v2/8QIHdirKhMbn-su3uI0crg.woff2) format('woff2');unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20CF,U+2113,U+2C60-2C7F,U+A720-A7FF}@font-face{font-family:Comme;font-style:normal;font-weight:700;font-display:swap;src:url(https://fonts.gstatic.com/s/comme/v2/8QIHdirKhMbn-su5uI0.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}</style><link rel="stylesheet" href="/m.css"><script src="/m.js"></script></head><body class="sw"><a href="#content">Przeskocz do treści</a><div id="sp"><button id="so">Ustawienia</button><dialog id="sd"><div><h2>Ustawienia</h2><button id="sc">Zamknij</button><form id="sf"><fieldset class="g g1"><legend>Motyw:</legend><label><input type="radio" name="theme" value="">Automatyczny (urządzenie)</label><label><input type="radio" name="theme" value="dark">Ciemny</label><label><input type="radio" name="theme" value="light">Jasny</label></fieldset><fieldset class="g g1"><legend>Kontrast:</legend><label><input type="radio" name="contrast" value="">Automatyczny (urządzenie)</label><label><input type="radio" name="contrast" value="less">Normalny</label><label><input type="radio" name="contrast" value="more">Zwiększony</label></fieldset><fieldset class="g g1"><legend>Grubość obramówek:</legend><label><input type="radio" name="border_width" value="">Normalne</label><label><input type="radio" name="border_width" value="0">Cienkie</label><label><input type="radio" name="border_width" value="2">Grube</label></fieldset><fieldset class="g g1"><legend>Zapamiętywanie ustawień:</legend><label><input type="radio" name="data" value="">Brak</label><label><input type="radio" name="data" value="local_storage">Trwały zapis w przeglądarce (localStorage)</label><label><input type="radio" name="data" value="session_storage">Tymczasowy zapis w przeglądarce (sessionStorage)</label></fieldset><fieldset class="g g1"><legend>Zapisane ustawienia:</legend><code id="sout" class="m"></code><button id="sdel">Usuń zapisane ustawienia</button></fieldset></form></div></dialog></div><script>CSSVars();SettingsApply();</script><header id="h"><a class="l" href="/"><svg xmlns="http://www.w3.org/2000/svg" width="33" height="41" viewBox="0 0 408 512"><g transform="translate(-368 -584)"><rect width="80" height="80" transform="translate(696 1016)" fill="var(--cc)" /><path d="M368,1096V584H776V800H696V656H448v360H552v80Z" fill="var(--cc)" /><path d="M552,1096V880H776v80H632v136Z" fill="var(--c)" /></g></svg>grezisek</a><a href="/artykuly/" class="aa">artykuły</a><a href="/projekty/">projekty</a><a href="mailto:grezisek@gmail.com">e-mail</a></header><article id="content" class="rw2"><header><h1>5. Generator - Asyn&shy;chro&shy;niczny js</h1><p>Wyjaśniam korzystanie z generatorów w asynchronicznym JavaScript.</p></header><section><h2>Sposób użycia</h2><p>Wiemy już jak z blokowaniem wstrzymać całe instrukcje z użyciem timeout i idleCallback.
+            Wiemy też jak bez blokowania wstrzymać poszczególne, asynchroniczne kroki instrukcji async.
+            Brakuje nam narzędzia, które pozwoli ręcznie dzielić instrukcje na kroki i ręcznie wybierać moment kontynuacji.
+            Do tego celu możemy użyć funkcji-generatora.
+            Uruchomienie takiej funkcji zwraca generator, którym kontrolujemy wykonanie kroków.
+            Każdy krok zwraca osobną wartość i informację, czy wszystkie kroki są już ukończone.</p><pre><code>function* test() {
+    let currentStep = 0;
+    while (true) {
+        currentStep++;
+        yield currentStep;
+    }
+}
+const generatorTest = test();
+console.log(generatorTest.next());
+console.log(generatorTest.next());
+// {value: 1, done: false}
+// {value: 2, done: false}</code></pre><p>Jeśli nie masz możliwości użyć asynchronicznego kodu, nadal możesz samodzielnie podzielić pracę na etapy i samodzielnie wyznaczać przerwy dla innych instrukcji.</p><pre><code>const queue = [];
+const callTimeLimit = 10;
+function* test() {
+    let currentInstruction;
+    yield;
+    while (true) {
+        if (queue.length > 0) {
+            (queue.shift())();
+        }
+        yield;
+    }
+}
+function eventLoop() {
+    const timestamp = performance.now();
+    while (queue.length > 0 && timestamp + callTimeLimit > performance.now()) {
+        generatorTest.next();
+    }
+    requestAnimationFrame(eventLoop);
+}
+function createHardWork(time = 2) {
+    const hardWork = () => {
+        const timestamp = performance.now();
+        while (timestamp + time > performance.now()) {
+            continue;
+        }
+        console.log(time);
+    };
+    return hardWork;
+}
+const generatorTest = test();
+eventLoop();
+queue.push(
+    createHardWork(),
+    createHardWork(),
+    createHardWork(30),
+    createHardWork(),
+    createHardWork(1500),
+    createHardWork()
+);
+// 2
+// 2
+// 30
+// 2
+// 1500
+// 2</code></pre><p>Zwróć uwagę na przykład.
+            Dzięki nieskończonej pętli, generator nigdy nie kończy pracy i z każdym krokiem wyciąga z kolejki najdawniejszą dostępną instrukcję, po czym ją wykonuje.
+            W pętli bazującej na animationFrame, ograniczam częstość następowania grup z instrukcjami do granicy zauważalności (odświeżanie monitora).
+            Każde wykonanie animationFrame używa generatora aż do momentu przekroczenia czasu.
+            To znaczy, że krótkie instrukcje wykonają się w grupie, w ciągu jednej klatki animacji, zostawiając zazwyczaj około 6ms czasu bezczynności.
+            Pamiętaj, że animationFrame stara się działać na równo z częstością odświeżania monitora, ale może działać też rzadziej.
+            Jeśli limit czasu będzie dłuższy, niż częstość animationFrame, generator nie zostawi żadnego czasu bezczynności dla innych instrukcji.</p></section><footer class="g g1"><a href="/artykuly/asynchroniczny_js">Powrót do listy części</a><a href="/artykuly">Powrót do listy artykułów</a><a href="/">Powrót do strony głównej</a></footer></article><footer id="f" class="g113 g2"><address><a class="l" href="/"><svg xmlns="http://www.w3.org/2000/svg" width="33" height="41" viewBox="0 0 408 512"><g transform="translate(-368 -584)"><rect width="80" height="80" transform="translate(696 1016)" fill="var(--cc)" /><path d="M368,1096V584H776V800H696V656H448v360H552v80Z" fill="var(--cc)" /><path d="M552,1096V880H776v80H632v136Z" fill="var(--c)" /></g></svg>grezisek</a><p>Full stack web developer</p><a href="mailto:grezisek@gmail.com">Napisz e-mail</a></address><div id="i"><details><summary class="m mh">Cel tej strony</summary><div><p>Przede wszystkim, chcę dostarczyć czytelnikom wszechstronnego materiału edukacyjnego
+                z zakresu JavaScriptu.
+                Strona stawia sobie za zadanie pomóc w nauce tego języka programowania poprzez
+                przystępne tutoriale, praktyczne przykłady i ciekawe projekty.</p><p>Kolejnym celem jest prezentacja moich własnych projektów.
+                Cieszę się, że mogę podzielić się moimi osiągnięciami z szeroką publicznością i
+                pokazać, jak wykorzystuję JavaScript w praktyce.
+                Moje projekty są różnorodne i obejmują zarówno drobne funkcje pomocnicze jak i
+                wieloletnie projekty-giganty.
+                Pragnę zainspirować innych programistów do eksperymentowania i tworzenia
+                innowacyjnych rozwiązań.</p><p>Wreszcie, pragnę znaleźć pracę, która pozwoli mi wykorzystać moje doświadczenie w
+                programowaniu i jednocześnie zapewni dynamiczne i kreatywne środowisko pracy.
+                Cieszę się, że mogę zaprezentować swoje portfolio i udostępnić informacje o moich
+                osiągnięciach na tej stronie.
+                Liczę na to, że przyciągnie to uwagę pracodawców, którzy poszukują zdolnego i
+                zaangażowanego programisty.</p></div></details><details><summary class="m mh">Ułatwienia dostępności</summary><div><p>Poprawa dostępności materiałów edukacyjnych jest jednym z głównych priorytetów
+                technologicznych mojej strony internetowej.
+                Ta została zaprojektowana i rozwijana zgodnie z wytycznymi WCAG w celu spełnienia co
+                najmniej wersji AA.
+                Oznacza to, że dokładam wszelkich starań, aby treści były czytelne, łatwe do
+                nawigacji i dostępne dla osób z różnymi rodzajami niepełnosprawności oraz w trudnych
+                warunkach.</p><p>Aby zapewnić jak największe dopasowanie, moja strona obsługuje automatyczne
+                przełączanie między jasnym i ciemnym trybem.
+                Możesz polegać na ustawieniach swojego urządzenia i oczekiwać przewidywalnych
+                rezultatów (szczególnie braku nagłej, oślepiającej bieli w środku nocy).
+                Strona automatycznie wykrywa też twoje preferencje ograniczonej ilości efektów ruchu
+                i zmienia sposób animowania na bardziej przyjazny.</p><p>Ponadto, moja strona automatycznie redukuje zużycie internetu, wykrywając odpowiedni
+                nagłówek HTTP i dostosowując zawartość.
+                Dzięki temu, korzystając z wolniejszego połączenia internetowego lub ograniczonego
+                pakietu danych, możesz nadal korzystać z treści strony w sposób efektywny i bez
+                większych przeszkód.</p><p>Moja strona umożliwia pełne nawigowanie za pomocą klawiatury.
+                Jeśli korzystasz z czytnika ekranowego lub masz trudności w obsłudze myszy, możesz
+                swobodnie poruszać się po stronie i korzystać z jej funkcjonalności.</p><p>Dodatkowe dostosowanie strony do potrzeb lub upodobań jest możliwe poprzez panel
+                ustawień.
+                Możesz tam ręcznie kontrolować kontrast, przełączać między jasnym i ciemnym trybem,
+                regulować grubość obramowań elementów interaktywnych, kontrolować sposób zapisu
+                ustawień i zarządzać zapisanymi danymi.</p><p>Dążę do ciągłego doskonalenia dostępności mojej strony i monitorowania nowych
+                wytycznych WCAG.
+                Jeśli masz jakiekolwiek sugestie lub uwagi dotyczące dostępności mojej strony,
+                proszę o kontakt.
+                Cenię opinię użytkowników i jestem otwarty na wprowadzanie ulepszeń, aby zapewnić
+                jak najlepsze doświadczenie dla wszystkich odwiedzających.</p></div></details><details><summary class="m mh">Polityka prywatności</summary><div><ol><li><b>Pliki cookie i śledzenie:</b>Ta strona internetowa nie używa plików cookie
+                    ani śledzenia.
+                    Nie gromadzę żadnych informacji o Twojej wizycie na stronie.</li><li><b>Dane przekazywane w mailu:</b>Jeśli skontaktujesz się ze mną, przesyłając
+                    wiadomość e-mail, będę przetwarzać jedynie te dane, które dobrowolnie mi
+                    udostępnisz w treści wiadomości.
+                    Te informacje są używane wyłącznie w celu odpowiedzi na Twoje pytania i
+                    zgłoszenia lub wcale.
+                    Są to jednocześnie jedyne informacje o Tobie, do których mam dostęp.</li><li><b>Dane ustawień:</b>Strona może używać lokalnej pamięci przeglądarki do
+                    zapamiętywania ustawień.
+                    W odróżnieniu od cookie, te dane nie są wysyłane przez internet.
+                    Zapamiętywanie ustawień jest opcjonalne i domyślnie nieaktywne.
+                    Zapisane ustawienia możesz zobaczyć lub usunąć w panelu ustawień strony, w
+                    grupie "Zapisane ustawienia" lub z poziomu panelu przeglądarki.</li><li><b>Udostępnianie danych:</b>Nie udostępniam żadnych przekazanych mi danych
+                    osobom trzecim bez Twojej zgody, chyba że wymaga tego prawo.</li><li><b>Bezpieczeństwo:</b>Stosuję odpowiednie środki bezpieczeństwa, aby chronić
+                    Twoje dane przed nieuprawnionym dostępem, utratą lub nieuprawnionym ujawnieniem.
+                    Jednakże, żadna metoda przesyłania danych przez internet nie jest całkowicie
+                    bezpieczna i nie mogę zagwarantować absolutnego bezpieczeństwa przekazywanych
+                    informacji.</li><li><b>Zmiany w polityce prywatności:</b>Niniejsza polityka prywatności może być
+                    okresowo aktualizowana.
+                    Wszelkie istotne zmiany będą opublikowane na tej stronie.</li></ol></div></details></div><small>© grezisek 2023. Wszystkie prawa zastrzeżone.</small></footer></body></html>
