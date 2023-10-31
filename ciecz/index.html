@@ -142,7 +142,9 @@
     const queue = [null];
     let lastTimestamp = performance.now() - 10;
     function loop() {
-        update(performance.now() - lastTimestamp);
+        if (document.hasFocus()) {
+            update(performance.now() - lastTimestamp);
+        }
         lastTimestamp = performance.now();
 
         device.queue.writeBuffer(
