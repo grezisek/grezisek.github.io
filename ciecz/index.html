@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ciecz</title>
+</head>
+<body>
+<script type="module">
+    const count = 1300;
+    const FPS = 200;
+    const simSpeed = 1;
+    const collisionSize = 17;
+    const pressureMult = 7;
+    const viscositySlope = 0.38;
+
+    let viscosity = -0.01;
+
+    const G = 10 / 1000 * 0.3;
+    const airDamp = 0.9994;
+    const wallDamp = 0.99;
+    const touchDamp = 0.999;
+    const collideDamp = 0.998;
+    const limv = 2;
+    const wallCorr = 1.005;
+    const airDensity = 0.000000001;
+    const targetDensity = 0.002;
+    const smoothingRadius = 38;
+    const randomForceRatio = 2;
+    const randomForceFloor = 0.00000001;
+    const futureStep = 1;
+    const size = 3;
+
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    canvas.width = 800;
+    canvas.height = 400;
+
+    const adapter = await navigator.gpu.requestAdapter();
+    const device = await adapter.requestDevice();
+    const context = canvas.getContext("webgpu");
+    const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
+
+    const shaderCode = `
+    struct Uniforms {
+        instances : array<vec4<f32>, ${count}>,
+    }
+    struct VertexOutput {
+        @builtin(position) Position : vec4<f32>,
+        @location(0) color : vec4<f32>,
+    }
+
+    @binding(0) @group(0) var<uniform> uniforms : Uniforms;
+
+    @vertex
+    fn vertex(
+        @builtin(instance_index) i : u32,
+        @location(0) position : vec2<f32>
+    ) -> VertexOutput {
+        var out : VertexOutput;
+        out.Position = vec4<f32>(
+            (position * ${size} + uniforms.instances[i].xy)
+            * vec2<f32>(${1 / canvas.width}, ${1 / canvas.height}),
+
+            0.0, 1.0
+        );
+        out.color = vec4(uniforms.instances[i].w - 2.2, uniforms.instances[i].z, uniforms.instances[i].w, 1.0);
+        return out;
+    }
+    @fragment
+    fn fragment(@location(0) color: vec4<f32>) -> @location(0) vec4<f32> {
+        return color;
+    }`;
+
+    context.configure({
+    device,
+    format: presentationFormat,
+    alphaMode: "premultiplied",
+    });
+
+    const verticesBuffer = device.createBuffer({
+        size: 32,
+        usage: GPUBufferUsage.VERTEX,
+        mappedAtCreation: true,
+    });
+    new Float32Array(verticesBuffer.getMappedRange()).set([
+        1, -1,
+        -1, -1,
+        1, 1,
+        -1, 1,
+    ]);
+    verticesBuffer.unmap();
+
+    const uniformBuffer = device.createBuffer({
+        size: count * 16,
+        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+    });
+
+    const pipeline = device.createRenderPipeline({
+        layout: "auto",
+        vertex: {
+            module: device.createShaderModule({ code: shaderCode }),
+            entryPoint: "vertex",
+            buffers: [{
+                arrayStride: 8,
+                attributes: [{
+                    shaderLocation: 0,
+                    offset: 0,
+                    format: "float32x2"
+                }]
+            }]
+        },
+        fragment: {
+            module: device.createShaderModule({ code: shaderCode }),
+            entryPoint: "fragment",
+            targets: [{ format: presentationFormat }]
+        },
+        primitive: { topology: "triangle-strip" }
+    });
+
+    const uniformBindGroup = device.createBindGroup({
+        layout: pipeline.getBindGroupLayout(0),
+        entries: [
+            {
+                binding: 0,
+                resource: { buffer: uniformBuffer }
+            }
+        ]
+    });
+
+    const renderPassDescriptor = {
+        colorAttachments: [
+            {
+                view: null,
+                clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
+                loadOp: "clear",
+                storeOp: "store",
+            },
+        ],
+    };
+
+    const queue = [null];
+    let lastTimestamp = performance.now() - 10;
+    function loop() {
+        update(performance.now() - lastTimestamp);
+        lastTimestamp = performance.now();
+
+        device.queue.writeBuffer(
+            uniformBuffer,
+            0,
+            instances.buffer,
+        );
+
+        const commandEncoder = device.createCommandEncoder();
+        renderPassDescriptor.colorAttachments[0].view = context.getCurrentTexture().createView();
+        const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
+        passEncoder.setPipeline(pipeline);
+        passEncoder.setBindGroup(0, uniformBindGroup);
+        passEncoder.setVertexBuffer(0, verticesBuffer);
+        passEncoder.draw(4, count);
+        passEncoder.end();
+
+        queue[0] = commandEncoder.finish();
+        device.queue.submit(queue);
+
+        requestAnimationFrame(loop);
+    }
+
+    function randomInRange(min, max) {
+        return Math.random() * (max - min) + min;
+    }
+
+    function clamp(min, max, value) {
+        return Math.min(max, Math.max(min, value));
+    }
+
+    const xmin = -canvas.width;
+    const xmax = canvas.width;
+    const ymin = -canvas.height;
+    const ymax = canvas.height;
+
+    const grid = {};
+    const gridsX = Math.ceil(canvas.width / smoothingRadius * 2) + 2;
+    const gridsY = Math.ceil(canvas.height / smoothingRadius * 2) + 2;
+    const gridsXStart = -Math.ceil(canvas.width / smoothingRadius) - 1;
+    const gridsYStart = -Math.ceil(canvas.height / smoothingRadius) - 1;
+    const gridsXEnd = gridsXStart + gridsX;
+    const gridsYEnd = gridsYStart + gridsY;
+    function xToGridX(x) {
+        if (x < 0) {
+            return Math.ceil(x / smoothingRadius);
+        }
+
+        return Math.floor(x / smoothingRadius);
+    }
+    function yToGridY(y) {
+        if (y < 0) {
+            return Math.ceil(y / smoothingRadius);
+        }
+        return Math.floor(y / smoothingRadius)
+    }
+
+    for (let x = gridsXStart; x <= gridsXEnd; x++) {
+        grid[x] = {};
+        for (let y = gridsYStart; y <= gridsYEnd; y++) {
+            grid[x][y] = [];
+        }
+    }
+
+    const instances = new Float32Array(count * 4); //x, y, green, blue
+    for (let i = 0; i < count * 4; i += 4) {
+        instances[i] = randomInRange(xmin, xmax);
+        instances[i + 1] = randomInRange(ymin, ymax);
+        instances[i + 2] = 0;
+        instances[i + 3] = 1;
+        if (!grid[xToGridX(instances[i])][yToGridY(instances[i + 1])]) {
+            console.log(instances[i], instances[i + 1])
+        }
+        grid[xToGridX(instances[i])][yToGridY(instances[i + 1])].push(i);
+    }
+
+    const velocities = new Float32Array(count * 2);
+    const viscosities = new Float32Array(count * 2);
+    const futurePositions = new Float32Array(count * 2);
+    const densities = new Float32Array(count);
+
+    const vmax = 0.9;
+    const mousePos = [0, 0];
+
+    const fixedFrametime = 1000 / FPS / simSpeed;
+    const _fixedFrametime = fixedFrametime * simSpeed;
+    const futureTime = _fixedFrametime * futureStep;
+    let _G = G * _fixedFrametime;
+    let acc = 0;
+    function update(dt) {
+        acc += dt;
+        let nearby = new Array(9).fill(null);
+        let i;
+        let i2;
+        let vi;
+        let vi2;
+        let viy;
+        let di;
+        let vd;
+        let gx;
+        let gy;
+        let gi;
+        let nitems;
+        while (acc > fixedFrametime) {
+            viscosities.fill(0);
+            for (gx = gridsXStart; gx <= gridsXEnd; gx++){
+                for (gy = gridsYStart; gy <= gridsYEnd; gy++){
+                    setupNearby(nearby, gx, gy);
+
+                    for (gi = 0; gi < grid[gx][gy].length; gi++) {
+                        i = grid[gx][gy][gi];
+                        vi = i / 2;
+                        viy = vi + 1;
+                        di = i / 4;
+
+                        velocities[viy] -= _G;
+                        futurePositions[vi] = instances[i] + velocities[vi] * futureTime;
+                        futurePositions[viy] = instances[i + 1] + velocities[viy] * futureTime;
+
+                        densities[di] = calcDensity(vi, nearby);
+                        
+                        for (nitems of nearby) {
+                            for (i2 of nitems) {
+                                if (i2 == i) {
+                                    continue;
+                                }
+
+                                vi2 = i2 / 2;
+                                vd = viscosity * smoothing(futureDistanceSq(vi, vi2) ** viscositySlope);
+                                viscosities[vi] += (velocities[vi2] - velocities[vi]) * vd;
+                                viscosities[viy] += (velocities[vi2 + 1] - velocities[viy]) * vd;
+                            }
+                        }
+                    }
+                }
+            }
+
+            for (gx = gridsXStart; gx <= gridsXEnd; gx++){
+                for (gy = gridsYStart; gy <= gridsYEnd; gy++){
+                    setupNearby(nearby, gx, gy);
+
+                    for (gi = 0; gi < grid[gx][gy].length; gi++) {
+                        i = grid[gx][gy][gi];
+                        updateSingular(i, i / 2, i / 2 + 1, i / 4, gx, gy, gi, nearby);
+                    }
+                }
+            }
+
+            acc -= fixedFrametime;
+
+            if (exploding) {
+                explode(
+                    mousePos[0] * 2 - canvas.offsetLeft - canvas.width,
+                    -(mousePos[1] * 2 - canvas.offsetTop - canvas.height)
+                );
+            }
+        }
+    }
+
+    function setupNearby(nearby, gx, gy) {
+        nearby[0] = grid[gx-1]?.[gy-1];
+        nearby[1] = grid[gx-1]?.[gy];
+        nearby[2] = grid[gx-1]?.[gy+1];
+        nearby[3] = grid[gx][gy-1];
+        nearby[4] = grid[gx][gy];
+        nearby[5] = grid[gx][gy+1];
+        nearby[6] = grid[gx+1]?.[gy-1];
+        nearby[7] = grid[gx+1]?.[gy];
+        nearby[8] = grid[gx+1]?.[gy+1];
+    }
+
+    const collisionSizeSq = collisionSize**2;
+    function updateSingular(i, vi, viy, di, gx, gy, gi, nearby) {
+        const pForce = calcPressureForce(i, di, nearby);
+        velocities[vi] += pForce[0] / densities[di] * _fixedFrametime;
+        velocities[viy] += pForce[1] / densities[di] * _fixedFrametime;
+        const densityRatio = densities[di] / targetDensity;
+
+        if (densityRatio >= 1) {
+            velocities[vi] += viscosities[vi] * densityRatio * _fixedFrametime;
+            velocities[viy] += viscosities[viy] * densityRatio * _fixedFrametime;
+            velocities[vi] *= touchDamp;
+            velocities[viy] *= touchDamp;
+        } else {
+            velocities[vi] *= airDamp;
+            velocities[viy] *= airDamp;
+        }
+
+        const currv = velocities[vi]**2 + velocities[viy]**2;
+        if (currv > limv) {
+            velocities[vi] *= limv / currv;
+            velocities[viy] *= limv / currv;
+        }
+
+        instances[i] += velocities[vi] * _fixedFrametime;
+        instances[i + 1] += velocities[viy] * _fixedFrametime;
+
+        if (instances[i] < xmin) {
+            velocities[vi] = Math.abs(velocities[vi]) * wallDamp;
+            instances[i] += (xmin - instances[i]) * wallCorr;
+        } else if (instances[i] > xmax) {
+            velocities[vi] = -Math.abs(velocities[vi]) * wallDamp;
+            instances[i] += (xmax - instances[i]) * wallCorr;
+        }
+        if (instances[i + 1] < ymin) {
+            velocities[viy] = Math.abs(velocities[viy]) * wallDamp;
+            instances[i + 1] += (ymin - instances[i + 1]) * wallCorr;
+
+        } else if (instances[i + 1] > ymax) {
+            velocities[viy] = -Math.abs(velocities[viy]) * wallDamp;
+            instances[i + 1] += (ymax - instances[i + 1]) * wallCorr;
+        }
+
+        let dx = 0;
+        let dy = 0;
+        let dsq = 0;
+        let d = 0;
+        let nx = 0;
+        let ny = 0;
+        let s = 0;
+        let k = 0;
+        for (let nitems of nearby) {
+            for (let ni of nitems) {
+                if (ni == i) {
+                    continue;
+                }
+                dx = instances[ni] - instances[i];
+                dy = instances[ni + 1] - instances[i + 1];
+                dsq = dx**2 + dy**2;
+                if (dsq > collisionSizeSq) {
+                    continue;
+                }
+                d = dsq**0.5;
+                nx = dx / d;
+                ny = dy / d;
+                s = (collisionSize - d) / 2;
+                instances[i] -= nx * s;
+                instances[i + 1] -= ny * s;
+                instances[ni] += nx * s;
+                instances[ni + 1] += ny * s;
+                
+                k = -2 * ((velocities[ni/2] - velocities[i/2]) * nx + (velocities[ni/2 + 1] - velocities[i/2 + 1]) * ny) / 2;
+                velocities[i/2] = (velocities[i/2] - k * nx) * collideDamp;
+                velocities[i/2 + 1] = (velocities[i/2 + 1] - k * ny) * collideDamp;
+                velocities[ni/2] = (velocities[ni/2] + k * nx) * collideDamp;
+                velocities[ni/2 + 1] = (velocities[ni/2 + 1] + k * ny) * collideDamp;
+            }
+        }
+
+        const gxnew = xToGridX(instances[i]);
+        const gynew = yToGridY(instances[i + 1]);
+        if (gxnew != gx || gynew != gy) {
+            grid[gx][gy].splice(gi, 1);
+            grid[gxnew][gynew].push(i);
+        }
+
+        instances[i + 2] = ((Math.abs(velocities[vi]) + Math.abs(velocities[viy]))) / vmax;
+        instances[i + 3] = (0.9 + Math.abs(velocities[vi]) + Math.abs(velocities[viy]))**1.6 / vmax;
+    }
+
+    function calcDensity(vi2, nearby) {
+        let density = airDensity;
+        for (const nitems of nearby) {
+            for (const i of nitems) {
+                density += smoothing(futureDistanceSq(i/2, vi2) ** 0.5);
+            }
+        }
+        return density;
+    }
+
+    function calcPressureForce(id, di2, nearby) {
+        const force = [0, 0];
+        let dx = 0;
+        let dy = 0;
+        let dsq = 0;
+        let d = 0;
+        let nx = 0;
+        let ny = 0;
+        let vi = 0;
+        let di = 0;
+        let pressure = airDensity;
+
+        for (const nitems of nearby) {
+            for (const i of nitems) {
+                if (id == i) {
+                    continue;
+                }
+        
+                vi = i / 2;
+                dx = futurePositions[vi] - futurePositions[id / 2];
+                dy = futurePositions[vi + 1] - futurePositions[id / 2 + 1];
+                dsq = dx ** 2 + dy ** 2;
+                d = dsq ** 0.5;
+                if (d > smoothingRadius) {
+                    continue;
+                }
+        
+                if (d > randomForceFloor) {
+                    di = i / 4;
+                    nx = dx / d;
+                    ny = dy / d;
+                    pressure = densityToPressure((densities[di] + densities[di2]) / 2) * smoothingDeriv(d) / densities[di];
+                    force[0] += pressure * nx;
+                    force[1] += pressure * ny;
+                } else {
+                    force[0] += (Math.random() - 0.5) * randomForceRatio;
+                    force[1] += (Math.random() - 0.5) * randomForceRatio;
+                }
+            }
+        }
+
+        return force;
+    }
+
+    const smoothingVol = Math.PI * (smoothingRadius**4) / 6;
+    function smoothing(d) {
+        if (d > smoothingRadius) {
+            return 0;
+        }
+
+        return ((smoothingRadius - d)**2) / smoothingVol;
+    }
+
+    const smoothingDerivScale = 12 / ((smoothingRadius**4) * Math.PI);
+    function smoothingDeriv(d) {
+        if (d > smoothingRadius) {
+            return 0;
+        }
+
+        return smoothingDerivScale * (d - smoothingRadius);
+    }
+
+    function distanceSq(i, i2) {
+        return (instances[i2] - instances[i]) ** 2 + (instances[i2+1] - instances[i+1]) ** 2;
+    }
+    function futureDistanceSq(i, i2) {
+        return (futurePositions[i2] - futurePositions[i]) ** 2 + (futurePositions[i2+1] - futurePositions[i+1]) ** 2;
+    }
+
+    function densityToPressure(density) {
+        return (density - targetDensity) * pressureMult;
+    }
+
+    const radius = 200;
+    let exploding = false;
+    let inverted = false;
+    function explode(x, y) {
+        let dx = 0;
+        let dy = 0;
+        let nx = 0;
+        let ny = 0;
+        let dsq = 0;
+        let d = 0;
+        let s = 0;
+        for (let i = 0, vi = 0; i < count * 4; i += 4, vi += 2) {
+            dx = x - instances[i];
+            dy = y - instances[i + 1];
+            dsq = dx ** 2 + dy ** 2;
+            d = dsq ** 0.5;
+            // console.log(d)
+            if (d > radius) {
+                continue;
+            }
+            if(d <= 0) {
+                d = 0.001;
+            }
+            nx = dx / d;
+            ny = dy / d;
+            s = radius - d;
+            
+            if (inverted) {
+                velocities[vi] += nx * s / 600;
+                velocities[vi + 1] += ny * s / 600;
+            } else {
+                velocities[vi] -= nx * s / 200;
+                velocities[vi + 1] -= ny * s / 200;
+            }
+        }
+    }
+
+    canvas.addEventListener("mousedown", e => {
+        mousePos[0] = e.x;
+        mousePos[1] = e.y;
+        exploding = true;
+    });
+    canvas.addEventListener("mouseup", e => {
+        mousePos[0] = e.x;
+        mousePos[1] = e.y;
+        exploding = false;
+    });
+    canvas.addEventListener("mousemove", e => {
+        mousePos[0] = e.x;
+        mousePos[1] = e.y;
+    });
+    window.addEventListener("keydown", e => {
+        if (e.key == "Control") {
+            inverted = true;
+        }
+    });
+    window.addEventListener("keyup", e => {
+        if (e.key == "Control") {
+            inverted = false;
+        }
+    });
+
+    const viscosityInput = document.createElement("input");
+    viscosityInput.type = "range";
+    viscosityInput.min = -0.1;
+    viscosityInput.max = 3;
+    viscosityInput.step = 0.001;
+    viscosityInput.value = -0.1;
+    viscosityInput.addEventListener("change", _ => viscosity = viscosityInput.valueAsNumber)
+    document.body.appendChild(viscosityInput);
+
+    const gravityInput = document.createElement("input");
+    gravityInput.type = "range";
+    gravityInput.min = 0;
+    gravityInput.max = 1;
+    gravityInput.step = 0.01;
+    gravityInput.value = 1;
+    gravityInput.addEventListener("change", _ => {
+        _G = G * gravityInput.valueAsNumber * _fixedFrametime;
+    })
+    document.body.appendChild(gravityInput);
+
+    loop();
+</script>
+</body>
+</html>
