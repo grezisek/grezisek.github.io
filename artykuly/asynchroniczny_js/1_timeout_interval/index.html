@@ -1,10 +1,11 @@
-<!DOCTYPE html><html lang="pl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>1. Timeout i interval - Asyn&shy;chro&shy;niczny js - Grezisek</title><meta name="description" content="Wyjaśniam korzystanie z funkcji setTimeout i setInterval w asynchronicznym JavaScript."><style>@font-face{font-family:Aleo;font-style:normal;font-weight:700;font-display:swap;src:url(https://fonts.gstatic.com/s/aleo/v14/c4mv1nF8G8_swAPJ0Q1o.woff2) format('woff2');unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20CF,U+2113,U+2C60-2C7F,U+A720-A7FF}@font-face{font-family:Aleo;font-style:normal;font-weight:700;font-display:swap;src:url(https://fonts.gstatic.com/s/aleo/v14/c4mv1nF8G8_swA3J0Q.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}@font-face{font-family:Comme;font-style:normal;font-weight:400;font-display:swap;src:url(https://fonts.gstatic.com/s/comme/v2/8QIHdirKhMbn-su3uI0crg.woff2) format('woff2');unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20CF,U+2113,U+2C60-2C7F,U+A720-A7FF}@font-face{font-family:Comme;font-style:normal;font-weight:400;font-display:swap;src:url(https://fonts.gstatic.com/s/comme/v2/8QIHdirKhMbn-su5uI0.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}@font-face{font-family:Comme;font-style:normal;font-weight:700;font-display:swap;src:url(https://fonts.gstatic.com/s/comme/v2/8QIHdirKhMbn-su3uI0crg.woff2) format('woff2');unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20CF,U+2113,U+2C60-2C7F,U+A720-A7FF}@font-face{font-family:Comme;font-style:normal;font-weight:700;font-display:swap;src:url(https://fonts.gstatic.com/s/comme/v2/8QIHdirKhMbn-su5uI0.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}</style><link rel="stylesheet" href="/m.css"><script src="/m.js"></script></head><body class="sw"><a href="#content">Przeskocz do treści</a><div id="sp"><button id="so">Ustawienia</button><dialog id="sd"><div><h2>Ustawienia</h2><button id="sc">Zamknij</button><form id="sf"><fieldset class="g g1"><legend>Motyw:</legend><label><input type="radio" name="theme" value="">Automatyczny (urządzenie)</label><label><input type="radio" name="theme" value="dark">Ciemny</label><label><input type="radio" name="theme" value="light">Jasny</label></fieldset><fieldset class="g g1"><legend>Kontrast:</legend><label><input type="radio" name="contrast" value="">Automatyczny (urządzenie)</label><label><input type="radio" name="contrast" value="less">Normalny</label><label><input type="radio" name="contrast" value="more">Zwiększony</label></fieldset><fieldset class="g g1"><legend>Grubość obramówek:</legend><label><input type="radio" name="border_width" value="">Normalne</label><label><input type="radio" name="border_width" value="0">Cienkie</label><label><input type="radio" name="border_width" value="2">Grube</label></fieldset><fieldset class="g g1"><legend>Zapamiętywanie ustawień:</legend><label><input type="radio" name="data" value="">Brak</label><label><input type="radio" name="data" value="local_storage">Trwały zapis w przeglądarce (localStorage)</label><label><input type="radio" name="data" value="session_storage">Tymczasowy zapis w przeglądarce (sessionStorage)</label></fieldset><fieldset class="g g1"><legend>Zapisane ustawienia:</legend><code id="sout" class="m"></code><button id="sdel">Usuń zapisane ustawienia</button></fieldset></form></div></dialog></div><script>CSSVars();SettingsApply();</script><header id="h"><a class="l" href="/"><svg xmlns="http://www.w3.org/2000/svg" width="33" height="41" viewBox="0 0 408 512"><g transform="translate(-368 -584)"><rect width="80" height="80" transform="translate(696 1016)" fill="var(--cc)" /><path d="M368,1096V584H776V800H696V656H448v360H552v80Z" fill="var(--cc)" /><path d="M552,1096V880H776v80H632v136Z" fill="var(--c)" /></g></svg>grezisek</a><a href="/artykuly/" class="aa">artykuły</a><a href="/projekty/">projekty</a><a href="mailto:grezisek@gmail.com">e-mail</a></header><article id="content" class="rw2"><header><h1>1. Timeout i interval - Asyn&shy;chro&shy;niczny js</h1><p>Wyjaśniam korzystanie z funkcji setTimeout i setInterval w asynchronicznym JavaScript.</p></header><section><h2>Sposób użycia</h2><p>Najprostszymi metodami dodania jakiegoś działania "pomiędzy" innymi zadaniami to setTimeout i setInterval.
+<!DOCTYPE html><html lang="pl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>1. Timeout i interval - Asyn&shy;chro&shy;niczny js - Grezisek</title><meta name="description" content="Wyjaśniam korzystanie z funkcji setTimeout i setInterval w asynchronicznym JavaScript."><style>@font-face{font-family:Aleo;font-style:normal;font-weight:700;font-display:swap;src:url(https://fonts.gstatic.com/s/aleo/v14/c4mv1nF8G8_swAPJ0Q1o.woff2) format('woff2');unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20CF,U+2113,U+2C60-2C7F,U+A720-A7FF}@font-face{font-family:Aleo;font-style:normal;font-weight:700;font-display:swap;src:url(https://fonts.gstatic.com/s/aleo/v14/c4mv1nF8G8_swA3J0Q.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}@font-face{font-family:Comme;font-style:normal;font-weight:400;font-display:swap;src:url(https://fonts.gstatic.com/s/comme/v2/8QIHdirKhMbn-su3uI0crg.woff2) format('woff2');unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20CF,U+2113,U+2C60-2C7F,U+A720-A7FF}@font-face{font-family:Comme;font-style:normal;font-weight:400;font-display:swap;src:url(https://fonts.gstatic.com/s/comme/v2/8QIHdirKhMbn-su5uI0.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}@font-face{font-family:Comme;font-style:normal;font-weight:700;font-display:swap;src:url(https://fonts.gstatic.com/s/comme/v2/8QIHdirKhMbn-su3uI0crg.woff2) format('woff2');unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20CF,U+2113,U+2C60-2C7F,U+A720-A7FF}@font-face{font-family:Comme;font-style:normal;font-weight:700;font-display:swap;src:url(https://fonts.gstatic.com/s/comme/v2/8QIHdirKhMbn-su5uI0.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}</style><link rel="stylesheet" href="/m.css"><script src="/app.js"></script></head><body class="sw"><a href="#content">Przeskocz do treści</a><div id="sp"><button id="so">Ustawienia</button><dialog id="sd"><div><h2>Ustawienia</h2><button id="sc">Zamknij</button><form id="sf"><fieldset class="g g1"><legend>Motyw:</legend><label><input type="radio" name="theme" value="">Automatyczny (urządzenie)</label><label><input type="radio" name="theme" value="dark">Ciemny</label><label><input type="radio" name="theme" value="light">Jasny</label></fieldset><fieldset class="g g1"><legend>Kontrast:</legend><label><input type="radio" name="contrast" value="">Automatyczny (urządzenie)</label><label><input type="radio" name="contrast" value="less">Normalny</label><label><input type="radio" name="contrast" value="more">Zwiększony</label></fieldset><fieldset class="g g1"><legend>Grubość obramówek:</legend><label><input type="radio" name="border_width" value="">Normalne</label><label><input type="radio" name="border_width" value="0">Cienkie</label><label><input type="radio" name="border_width" value="2">Grube</label></fieldset><fieldset class="g g1"><legend>Zapamiętywanie ustawień:</legend><label><input type="radio" name="data" value="">Brak</label><label><input type="radio" name="data" value="local_storage">Trwały zapis w przeglądarce (localStorage)</label><label><input type="radio" name="data" value="session_storage">Tymczasowy zapis w przeglądarce (sessionStorage)</label></fieldset><fieldset class="g g1"><legend>Zapisane ustawienia:</legend><code id="sout" class="m"></code><button id="sdel">Usuń zapisane ustawienia</button></fieldset></form></div></dialog></div><script>CSSVars();SettingsApply();</script><header id="h"><a class="l" href="/"><svg xmlns="http://www.w3.org/2000/svg" width="33" height="41" viewBox="0 0 408 512"><g transform="translate(-368 -584)"><rect width="80" height="80" transform="translate(696 1016)" fill="var(--cc)" /><path d="M368,1096V584H776V800H696V656H448v360H552v80Z" fill="var(--cc)" /><path d="M552,1096V880H776v80H632v136Z" fill="var(--c)" /></g></svg>grezisek</a><a href="/artykuly/" class="aa">artykuły</a><a href="/projekty/">projekty</a><a href="mailto:grezisek@gmail.com">e-mail</a></header><article id="content" class="rw2"><header><h1>1. Timeout i interval - Asyn&shy;chro&shy;niczny js</h1><p>Wyjaśniam korzystanie z funkcji setTimeout i setInterval w asynchronicznym JavaScript.</p></header><section><h2>Sposób użycia</h2><p>Najprostszymi metodami dodania jakiegoś działania "pomiędzy" innymi zadaniami to setTimeout i setInterval.
             Główny wątek dodaje je do osobnej kolejki, w której instrukcje czekają na pierwszą wolną chwilę po wyznaczonym czasie.
             To coś jak zapasowa pamięć, która ma własną nieskończoną pętlę do częstego sprawdzania gotowości zawartości.
             Pętla czeka na moment, w którym stos głównego wątku jest pusty, po czym bardzo często sprawdza gotowość wszystkich rzeczy z pamięci.
             Po upływie czasu, instrukcje są ściągane na stos.</p><pre><code>console.log(1);
 setTimeout(() => console.log(3), 0);
 console.log(2);
+
 // 1
 // 2
 // 3</code></pre></section><section><h2>To nie jest asynchroniczny javascript</h2><p>Te metody mają jedną zasadniczą wadę - muszą czekać na wolną chwilę, czyli moment, gdy stos jest pusty.
@@ -15,6 +16,7 @@ while (timestamp + 1000 > performance.now()) {
     continue;
 }
 console.log(2);
+
 // 1
 // sekunda przerwy
 // 2
@@ -22,6 +24,7 @@ console.log(2);
             Czy wtedy kod jest asynchroniczny?</p><pre><code>function Async(callback) {
     setTimeout(callback, 0);
 }
+
 let timestamp = performance.now();
 Async(() => console.log(1));
 Async(() => console.log(2));
@@ -29,10 +32,12 @@ while (timestamp + 1000 > performance.now()) {
     continue;
 }
 Async(() => console.log(3));
+
 // sekunda przerwy
 // 1
 // 2
 // 3
+
 timestamp = performance.now();
 Async(() => console.log(1));
 Async(() => console.log(2));
@@ -42,6 +47,7 @@ Async(() => {
     }
 });
 Async(() => console.log(3));
+
 // 1
 // 2
 // sekunda przerwy
@@ -84,9 +90,9 @@ Async(() => console.log(3));
                 Jeśli korzystasz z czytnika ekranowego lub masz trudności w obsłudze myszy, możesz
                 swobodnie poruszać się po stronie i korzystać z jej funkcjonalności.</p><p>Dodatkowe dostosowanie strony do potrzeb lub upodobań jest możliwe poprzez panel
                 ustawień.
-                Możesz tam ręcznie kontrolować kontrast, przełączać między jasnym i ciemnym trybem,
-                regulować grubość obramowań elementów interaktywnych, kontrolować sposób zapisu
-                ustawień i zarządzać zapisanymi danymi.</p><p>Dążę do ciągłego doskonalenia dostępności mojej strony i monitorowania nowych
+                Możesz tam ręcznie kontrolować kontrast, przełączać między jasnym i ciemnym trybem i
+                regulować grubość obramowań elementów interaktywnych. Możesz też kontrolować sposób zapisu
+                ustawień i zarządzać zapisanymi danymi, jeśli twoje urządzenie wspiera użycie pamięci lokalnej.</p><p>Dążę do ciągłego doskonalenia dostępności mojej strony i monitorowania nowych
                 wytycznych WCAG.
                 Jeśli masz jakiekolwiek sugestie lub uwagi dotyczące dostępności mojej strony,
                 proszę o kontakt.
@@ -99,12 +105,12 @@ Async(() => console.log(3));
                     Te informacje są używane wyłącznie w celu odpowiedzi na Twoje pytania i
                     zgłoszenia lub wcale.
                     Są to jednocześnie jedyne informacje o Tobie, do których mam dostęp.</li><li><b>Dane ustawień:</b>Strona może używać lokalnej pamięci przeglądarki do
-                    zapamiętywania ustawień.
-                    W odróżnieniu od cookie, te dane nie są wysyłane przez internet.
+                    zapamiętywania ustawień, jeśli urządzenie na to zezwala.
                     Zapamiętywanie ustawień jest opcjonalne i domyślnie nieaktywne.
+                    W odróżnieniu od cookie, te dane nie są wysyłane przez internet.
                     Zapisane ustawienia możesz zobaczyć lub usunąć w panelu ustawień strony, w
-                    grupie "Zapisane ustawienia" lub z poziomu panelu przeglądarki.</li><li><b>Udostępnianie danych:</b>Nie udostępniam żadnych przekazanych mi danych
-                    osobom trzecim bez Twojej zgody, chyba że wymaga tego prawo.</li><li><b>Bezpieczeństwo:</b>Stosuję odpowiednie środki bezpieczeństwa, aby chronić
+                    grupie "Zapisane ustawienia" lub z poziomu panelu przeglądarki.
+                    Ustawienia w panelu strony są niedostępne na urządzeniach bez pamięci lokalnej.</li><li><b>Udostępnianie danych:</b>Nie udostępniam żadnych przekazanych mi danych bez Twojej zgody, chyba że wymaga tego prawo.</li><li><b>Bezpieczeństwo:</b>Stosuję odpowiednie środki bezpieczeństwa, aby chronić
                     Twoje dane przed nieuprawnionym dostępem, utratą lub nieuprawnionym ujawnieniem.
                     Jednakże, żadna metoda przesyłania danych przez internet nie jest całkowicie
                     bezpieczna i nie mogę zagwarantować absolutnego bezpieczeństwa przekazywanych

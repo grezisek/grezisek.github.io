@@ -1,0 +1,258 @@
+<!DOCTYPE html><html lang="pl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>7. Compute&shy;Shader - Asyn&shy;chro&shy;niczny js - Grezisek</title><meta name="description" content="Wyjaśniam korzystanie z WebGPU ComputeShader w asynchronicznym js."><style>@font-face{font-family:Aleo;font-style:normal;font-weight:700;font-display:swap;src:url(https://fonts.gstatic.com/s/aleo/v14/c4mv1nF8G8_swAPJ0Q1o.woff2) format('woff2');unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20CF,U+2113,U+2C60-2C7F,U+A720-A7FF}@font-face{font-family:Aleo;font-style:normal;font-weight:700;font-display:swap;src:url(https://fonts.gstatic.com/s/aleo/v14/c4mv1nF8G8_swA3J0Q.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}@font-face{font-family:Comme;font-style:normal;font-weight:400;font-display:swap;src:url(https://fonts.gstatic.com/s/comme/v2/8QIHdirKhMbn-su3uI0crg.woff2) format('woff2');unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20CF,U+2113,U+2C60-2C7F,U+A720-A7FF}@font-face{font-family:Comme;font-style:normal;font-weight:400;font-display:swap;src:url(https://fonts.gstatic.com/s/comme/v2/8QIHdirKhMbn-su5uI0.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}@font-face{font-family:Comme;font-style:normal;font-weight:700;font-display:swap;src:url(https://fonts.gstatic.com/s/comme/v2/8QIHdirKhMbn-su3uI0crg.woff2) format('woff2');unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20CF,U+2113,U+2C60-2C7F,U+A720-A7FF}@font-face{font-family:Comme;font-style:normal;font-weight:700;font-display:swap;src:url(https://fonts.gstatic.com/s/comme/v2/8QIHdirKhMbn-su5uI0.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}</style><link rel="stylesheet" href="/m.css"><script src="/app.js"></script></head><body class="sw"><a href="#content">Przeskocz do treści</a><div id="sp"><button id="so">Ustawienia</button><dialog id="sd"><div><h2>Ustawienia</h2><button id="sc">Zamknij</button><form id="sf"><fieldset class="g g1"><legend>Motyw:</legend><label><input type="radio" name="theme" value="">Automatyczny (urządzenie)</label><label><input type="radio" name="theme" value="dark">Ciemny</label><label><input type="radio" name="theme" value="light">Jasny</label></fieldset><fieldset class="g g1"><legend>Kontrast:</legend><label><input type="radio" name="contrast" value="">Automatyczny (urządzenie)</label><label><input type="radio" name="contrast" value="less">Normalny</label><label><input type="radio" name="contrast" value="more">Zwiększony</label></fieldset><fieldset class="g g1"><legend>Grubość obramówek:</legend><label><input type="radio" name="border_width" value="">Normalne</label><label><input type="radio" name="border_width" value="0">Cienkie</label><label><input type="radio" name="border_width" value="2">Grube</label></fieldset><fieldset class="g g1"><legend>Zapamiętywanie ustawień:</legend><label><input type="radio" name="data" value="">Brak</label><label><input type="radio" name="data" value="local_storage">Trwały zapis w przeglądarce (localStorage)</label><label><input type="radio" name="data" value="session_storage">Tymczasowy zapis w przeglądarce (sessionStorage)</label></fieldset><fieldset class="g g1"><legend>Zapisane ustawienia:</legend><code id="sout" class="m"></code><button id="sdel">Usuń zapisane ustawienia</button></fieldset></form></div></dialog></div><script>CSSVars();SettingsApply();</script><header id="h"><a class="l" href="/"><svg xmlns="http://www.w3.org/2000/svg" width="33" height="41" viewBox="0 0 408 512"><g transform="translate(-368 -584)"><rect width="80" height="80" transform="translate(696 1016)" fill="var(--cc)" /><path d="M368,1096V584H776V800H696V656H448v360H552v80Z" fill="var(--cc)" /><path d="M552,1096V880H776v80H632v136Z" fill="var(--c)" /></g></svg>grezisek</a><a href="/artykuly/" class="aa">artykuły</a><a href="/projekty/">projekty</a><a href="mailto:grezisek@gmail.com">e-mail</a></header><article id="content" class="rw2"><header><h1>7. Compute&shy;Shader - Asyn&shy;chro&shy;niczny js</h1><p>Wyjaśniam korzystanie z WebGPU Compute&shy;Shader w asynchronicznym js.</p></header><section><h2>Wstęp</h2><p>Jak przeciągnąć wielordzeniowość do granic możliwości?
+            Wystarczy zamienić marne kilkanaście rdzeni procesora na ComputeShader w WebGPU.
+            Jeśli synchroniczny kod to bardzo długi pociąg a równoległy kod to kilka krótszych, jadących obok siebie, to ComputeShader jest bardzo długim pociągiem, który jedzie bokiem.
+            Jasne, że jazda pociągiem w bok nie należy do najszybszych, ale za to wszystkie wagony docierają w tym samym momencie.
+            Wątki karty graficznej mają też inne mocne i słabe strony, niż te w procesorze - są wyspecjalizowane do obliczeń, więc wiele innych funkcji na tym traci.
+            Technologia jest nowa i ulega zmianom a kod potrzebny do uruchomienia jest obszerny.
+            Pomijam więc obsługę błędów i wiele szczegółów, prezentując możliwie najprostszy, optymistyczny kod (dużo zwykłego mnożenia razy 2).</p></section><section><h2>Użycie</h2><p>Będziemy używali osobnego programu na karcie graficznej, więc najpierw musimy wszystko przygotować, potem złożyć w całość, żeby na końcu uruchomić.
+            Na początek ustalamy konfigurację dla obliczeń i zdobywamy kartę graficzną.</p><pre><code>const size = 16; // ilość liczb do obliczenia
+const workgroupSize = 8; // podział na kawałki dla karty graficznej
+const taskCount = 2**10; // ilość obciążenia podczas liczenia
+
+// size * taskCount obliczeń
+
+const adapter = await navigator.gpu.requestAdapter();
+const device = await adapter.requestDevice();</code></pre><p>Przesyłanie danych odbywa się poprzez przekazywanie własności nad wycinkiem pamięci (buforem, "wagonami").
+            Po przekazaniu pamięci, nie można jej użyć aż do momentu zwrotu.
+            Przygotujmy bufory do wgrywania i odczytywania liczb.
+            Input i output (dostępne w js) będą pośredniczyły w użyciu data i result (dostępne w ComputeShader).</p><pre><code>const gpuInputBuffer = device.createBuffer({
+    size,
+    usage: GPUBufferUsage.COPY_SRC | GPUBufferUsage.MAP_WRITE
+});
+const gpuDataBuffer = device.createBuffer({
+    size,
+    usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.STORAGE
+});
+const gpuResultBuffer = device.createBuffer({
+    size,
+    usage: GPUBufferUsage.COPY_SRC | GPUBufferUsage.STORAGE
+});
+const gpuOutputBuffer = device.createBuffer({
+    size,
+    usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
+});</code></pre><p>Teraz ustalmy sposób komunikacji z programem.
+            Ustawiamy ID połączeń, podłączamy je do miejsca dla compute shaderów i wyznaczamy typy buforów (result potrzebuje uprawnień do zapisu).
+            Na koniec tworzymy grupę połączeń z buforami według tego kształtu.</p><pre><code>const bindGroupLayout = device.createBindGroupLayout({
+  entries: [
+    {
+      binding: 0,
+      visibility: GPUShaderStage.COMPUTE,
+      buffer: { type: "read-only-storage" }
+    },
+    {
+      binding: 1,
+      visibility: GPUShaderStage.COMPUTE,
+      buffer: { type: "storage" }
+    }
+  ]
+});
+
+const bindGroup = device.createBindGroup({
+  layout: bindGroupLayout,
+  entries: [
+    {
+      binding: 0,
+      resource: { buffer: gpuDataBuffer }
+    },
+    {
+      binding: 1,
+      resource: { buffer: gpuResultBuffer }
+    }
+  ]
+});</code></pre><p>Przyszła pora napisać kod programu i połączyć wszystko w całość.
+            Najpierw układamy bufory zgodnie z wcześniejszym kształtem i typem.
+            Po ustawieniu buforów na swoich miejscach, podłączamy się do miejsca dla compute shaderów i piszemy funkcję z pętlą obciążającą.
+            Funkcja wykonuje się równolegle dla każdej przekazanej liczby. Zmienna global_id to indeks aktualnej liczby.
+            W rezultacie, dla każdej liczby wykonuje się wyznaczona ilość obciążenia a wynik zostaje obliczony z bufora data i zapisany do bufora result.</p><pre class="javascript"><code>const shaderModule = device.createShaderModule({
+  code: `
+    @group(0) @binding(0) var&lt;storage, read&gt; data : array&lt;u32&gt;;
+    @group(0) @binding(1) var&lt;storage, read_write&gt; result : array&lt;u32&gt;;
+
+    @compute @workgroup_size(${workgroupSize})
+    fn main(@builtin(global_invocation_id) global_id : vec3u) {
+      var j: i32 = 0;
+      loop {
+        if j &gt;= ${taskCount} {
+          break;
+        }
+        result[global_id.x] = data[global_id.x] * 2u;
+        j++;
+      }
+    }`
+});
+
+const computePipeline = device.createComputePipeline({
+  layout: device.createPipelineLayout({
+    bindGroupLayouts: [ bindGroupLayout ]
+  }),
+  compute: {
+    module: shaderModule,
+    entryPoint: "main"
+  }
+});</code></pre><p>Program jest gotowy do użycia. Pora napisać funkcję, która go użyje.
+            Nie zaszkodzi dopisać wersję opartą na procesorze i mały test wydajności.</p><pre><code>// funkcje gpu i cpu
+async function gpuWork(data) {
+    // żądamy pamięci, aktualizujemy dane, zwracamy pamięć
+    await gpuInputBuffer.mapAsync(GPUMapMode.WRITE);
+    new Uint8Array(gpuInputBuffer.getMappedRange()).set(data);
+    gpuInputBuffer.unmap();
+
+    // 1. gromadzimy ładunek poleceń i danych dla gpu
+    const commandEncoder = device.createCommandEncoder();
+
+    // pośredniczymy do karty
+    commandEncoder.copyBufferToBuffer(
+        gpuInputBuffer, 0,
+        gpuDataBuffer, 0,
+        size
+    );
+
+    // ustawiamy pracę
+    const passEncoder = commandEncoder.beginComputePass();
+    passEncoder.setPipeline(computePipeline);
+    passEncoder.setBindGroup(0, bindGroup);
+    passEncoder.dispatchWorkgroups(size / workgroupSize);
+    passEncoder.end();
+
+    // pośredniczymy z karty
+    commandEncoder.copyBufferToBuffer(
+        gpuResultBuffer, 0,
+        gpuOutputBuffer, 0,
+        size
+    );
+
+    // 2. przesłamy zgromadzony ładunek do wykonania
+    device.queue.submit([commandEncoder.finish()]);
+
+    // żądamy pamięci, odczytujemy dane, zwracamy pamięć
+    await gpuOutputBuffer.mapAsync(GPUMapMode.READ);
+    const out = Array.from(new Uint8Array(gpuOutputBuffer.getMappedRange()));
+    gpuOutputBuffer.unmap();
+
+    return out;
+}
+function cpuWork(data) {
+    const out = new Array(size);
+    let j;
+    // pętla "i" była wykonywana równolegle przez ComputeShader
+    for (let i = 0; i &lt; size; i++) {
+        for (j = 0; j &lt; taskCount; j++) {
+            out[i] = data[i] * 2;
+        }
+    }
+    return out;
+}
+
+// dane dla testu
+const data = new Array(size);
+for (let i = 0; i &lt; size; i++) {
+    data[i] = Math.floor(Math.random() * 50);
+}
+
+// test
+let timestamp = performance.now();
+await gpuWork(data);
+console.log(`gpu: ${performance.now() - timestamp}ms`);
+
+timestamp = performance.now();
+cpuWork(data);
+console.log(`cpu: ${performance.now() - timestamp}ms`);</code></pre></section><section><h2>Rezultat</h2><p>Wszystko zależy od ilości danych i obciążenia.</p><pre><code>const size = 8 * 2048;
+const workgroupSize = 8;
+const taskCount = 2**10;
+// gpu: 13ms, cpu: 16ms
+
+const size = 8 * 65535;
+const workgroupSize = 8;
+const taskCount = 2**10;
+// gpu: 33ms, cpu: 501ms
+
+const size = 8 * 65535 * 4;
+const workgroupSize = 8 * 4;
+const taskCount = 2**10;
+// gpu: 74ms, cpu: 1990ms
+
+const size = 8 * 65535 * 4;
+const workgroupSize = 8 * 4;
+const taskCount = 2**5;
+// gpu: 72ms, cpu: 70ms
+
+const size = 8 * 65535 * 16;
+const workgroupSize = 8 * 16;
+const taskCount = 2**5;
+// gpu: 270ms, cpu: 279ms
+
+const size = 8 * 65535 * 16;
+const workgroupSize = 8 * 16;
+const taskCount = 2**6;
+// gpu: 280ms, cpu: 531ms
+
+const size = 8 * 6;
+const workgroupSize = 8;
+const taskCount = 2**25;
+// gpu: 1325ms, cpu: 1350ms
+
+const size = 8 * 10;
+const workgroupSize = 8;
+const taskCount = 2**25;
+// gpu: 1330ms, cpu: 2265ms</code></pre><p>Użycie ComputeShader wiąże się z dużą ilością kodu a samo uruchomienie funkcji może kosztować kilkanaście milisekund.
+            Z drugiej strony, po przekroczeniu pewnych wartości, czas pracy procesora gwałtownie rośnie a ComputeShader znacznie dłużej pozostaje niewzruszony.
+            Zawsze należy dobrać narzędzie odpowiednie do zadania - teraz masz ich komplet.</p></section><footer class="g g1"><a href="/artykuly/asynchroniczny_js">Powrót do listy części</a><a href="/artykuly">Powrót do listy artykułów</a><a href="/">Powrót do strony głównej</a></footer></article><footer id="f" class="g113 g2"><address><a class="l" href="/"><svg xmlns="http://www.w3.org/2000/svg" width="33" height="41" viewBox="0 0 408 512"><g transform="translate(-368 -584)"><rect width="80" height="80" transform="translate(696 1016)" fill="var(--cc)" /><path d="M368,1096V584H776V800H696V656H448v360H552v80Z" fill="var(--cc)" /><path d="M552,1096V880H776v80H632v136Z" fill="var(--c)" /></g></svg>grezisek</a><p>Full stack web developer</p><a href="mailto:grezisek@gmail.com">Napisz e-mail</a></address><div id="i"><details><summary class="m mh">Cel tej strony</summary><div><p>Przede wszystkim, chcę dostarczyć czytelnikom wszechstronnego materiału edukacyjnego
+                z zakresu JavaScriptu.
+                Strona stawia sobie za zadanie pomóc w nauce tego języka programowania poprzez
+                przystępne tutoriale, praktyczne przykłady i ciekawe projekty.</p><p>Kolejnym celem jest prezentacja moich własnych projektów.
+                Cieszę się, że mogę podzielić się moimi osiągnięciami z szeroką publicznością i
+                pokazać, jak wykorzystuję JavaScript w praktyce.
+                Moje projekty są różnorodne i obejmują zarówno drobne funkcje pomocnicze jak i
+                wieloletnie projekty-giganty.
+                Pragnę zainspirować innych programistów do eksperymentowania i tworzenia
+                innowacyjnych rozwiązań.</p><p>Wreszcie, pragnę znaleźć pracę, która pozwoli mi wykorzystać moje doświadczenie w
+                programowaniu i jednocześnie zapewni dynamiczne i kreatywne środowisko pracy.
+                Cieszę się, że mogę zaprezentować swoje portfolio i udostępnić informacje o moich
+                osiągnięciach na tej stronie.
+                Liczę na to, że przyciągnie to uwagę pracodawców, którzy poszukują zdolnego i
+                zaangażowanego programisty.</p></div></details><details><summary class="m mh">Ułatwienia dostępności</summary><div><p>Poprawa dostępności materiałów edukacyjnych jest jednym z głównych priorytetów
+                technologicznych mojej strony internetowej.
+                Ta została zaprojektowana i rozwijana zgodnie z wytycznymi WCAG w celu spełnienia co
+                najmniej wersji AA.
+                Oznacza to, że dokładam wszelkich starań, aby treści były czytelne, łatwe do
+                nawigacji i dostępne dla osób z różnymi rodzajami niepełnosprawności oraz w trudnych
+                warunkach.</p><p>Aby zapewnić jak największe dopasowanie, moja strona obsługuje automatyczne
+                przełączanie między jasnym i ciemnym trybem.
+                Możesz polegać na ustawieniach swojego urządzenia i oczekiwać przewidywalnych
+                rezultatów (szczególnie braku nagłej, oślepiającej bieli w środku nocy).
+                Strona automatycznie wykrywa też twoje preferencje ograniczonej ilości efektów ruchu
+                i zmienia sposób animowania na bardziej przyjazny.</p><p>Ponadto, moja strona automatycznie redukuje zużycie internetu, wykrywając odpowiedni
+                nagłówek HTTP i dostosowując zawartość.
+                Dzięki temu, korzystając z wolniejszego połączenia internetowego lub ograniczonego
+                pakietu danych, możesz nadal korzystać z treści strony w sposób efektywny i bez
+                większych przeszkód.</p><p>Moja strona umożliwia pełne nawigowanie za pomocą klawiatury.
+                Jeśli korzystasz z czytnika ekranowego lub masz trudności w obsłudze myszy, możesz
+                swobodnie poruszać się po stronie i korzystać z jej funkcjonalności.</p><p>Dodatkowe dostosowanie strony do potrzeb lub upodobań jest możliwe poprzez panel
+                ustawień.
+                Możesz tam ręcznie kontrolować kontrast, przełączać między jasnym i ciemnym trybem i
+                regulować grubość obramowań elementów interaktywnych. Możesz też kontrolować sposób zapisu
+                ustawień i zarządzać zapisanymi danymi, jeśli twoje urządzenie wspiera użycie pamięci lokalnej.</p><p>Dążę do ciągłego doskonalenia dostępności mojej strony i monitorowania nowych
+                wytycznych WCAG.
+                Jeśli masz jakiekolwiek sugestie lub uwagi dotyczące dostępności mojej strony,
+                proszę o kontakt.
+                Cenię opinię użytkowników i jestem otwarty na wprowadzanie ulepszeń, aby zapewnić
+                jak najlepsze doświadczenie dla wszystkich odwiedzających.</p></div></details><details><summary class="m mh">Polityka prywatności</summary><div><ol><li><b>Pliki cookie i śledzenie:</b>Ta strona internetowa nie używa plików cookie
+                    ani śledzenia.
+                    Nie gromadzę żadnych informacji o Twojej wizycie na stronie.</li><li><b>Dane przekazywane w mailu:</b>Jeśli skontaktujesz się ze mną, przesyłając
+                    wiadomość e-mail, będę przetwarzać jedynie te dane, które dobrowolnie mi
+                    udostępnisz w treści wiadomości.
+                    Te informacje są używane wyłącznie w celu odpowiedzi na Twoje pytania i
+                    zgłoszenia lub wcale.
+                    Są to jednocześnie jedyne informacje o Tobie, do których mam dostęp.</li><li><b>Dane ustawień:</b>Strona może używać lokalnej pamięci przeglądarki do
+                    zapamiętywania ustawień, jeśli urządzenie na to zezwala.
+                    Zapamiętywanie ustawień jest opcjonalne i domyślnie nieaktywne.
+                    W odróżnieniu od cookie, te dane nie są wysyłane przez internet.
+                    Zapisane ustawienia możesz zobaczyć lub usunąć w panelu ustawień strony, w
+                    grupie "Zapisane ustawienia" lub z poziomu panelu przeglądarki.
+                    Ustawienia w panelu strony są niedostępne na urządzeniach bez pamięci lokalnej.</li><li><b>Udostępnianie danych:</b>Nie udostępniam żadnych przekazanych mi danych bez Twojej zgody, chyba że wymaga tego prawo.</li><li><b>Bezpieczeństwo:</b>Stosuję odpowiednie środki bezpieczeństwa, aby chronić
+                    Twoje dane przed nieuprawnionym dostępem, utratą lub nieuprawnionym ujawnieniem.
+                    Jednakże, żadna metoda przesyłania danych przez internet nie jest całkowicie
+                    bezpieczna i nie mogę zagwarantować absolutnego bezpieczeństwa przekazywanych
+                    informacji.</li><li><b>Zmiany w polityce prywatności:</b>Niniejsza polityka prywatności może być
+                    okresowo aktualizowana.
+                    Wszelkie istotne zmiany będą opublikowane na tej stronie.</li></ol></div></details></div><small>© grezisek 2023. Wszystkie prawa zastrzeżone.</small></footer></body></html>
