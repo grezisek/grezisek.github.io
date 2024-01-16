@@ -1,0 +1,85 @@
+body, kbd, data {
+    font-family: "Marhey", sans-serif;
+    font-weight: 300;
+    line-height: 1.5;
+}
+body {
+    padding: 2rem;
+    &:has(.is-in-game) {
+        overflow: hidden;
+    }
+}
+section {
+    display: grid;
+    grid-template-columns: 100%;
+    justify-items: start;
+    & + section {
+        margin-top: 2rem;
+    }
+}
+h1, h2 {
+    grid-column: 1/-1;
+}
+dl, form, label {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.5rem 4rem;
+}
+label {
+    grid-template-columns: subgrid;
+}
+meter {
+    width: min(25rem, 100%);
+    height: 3rem;
+}
+canvas {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    max-width: 100%;
+    max-height: 100%;
+}
+.is-in-pause canvas {
+    display: none;
+}
+#in_game, #in_gameover {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+}
+#in_game, #in_pause, #in_gameover {
+    padding: 2rem;
+    transition: 0.3s ease;
+}
+#in_pause, #in_gameover {
+    transition-property: opacity;
+}
+#in_game {
+    transition-property: filter, opacity;
+    &:not(.is-in-game) {
+        opacity: 0;
+        filter: brightness(0);
+        pointer-events: none;
+    }
+    &:not(.is-in-pause) #in_pause,
+    &:not(.is-in-gameover) #in_gameover {
+        opacity: 0;
+        pointer-events: none;
+    }
+}
+.is-in-game {
+    display: grid;
+    grid-template-columns: auto auto;
+    grid-template-rows: auto 1fr;
+    justify-content: space-between;
+    background: #fff;
+    & label {
+        padding: 1rem 2rem;
+        background: #eefc;
+        z-index: 1;
+    }
+}
