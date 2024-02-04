@@ -20,7 +20,7 @@ section {
 h1, h2 {
     grid-column: 1/-1;
 }
-dl, form, label {
+#controls, form, label {
     display: grid;
     grid-template-columns: auto 1fr;
     gap: 0.5rem 4rem;
@@ -43,6 +43,13 @@ canvas {
 .is-in-pause canvas {
     display: none;
 }
+#top_scores {
+    display: grid;
+    grid-template-columns: 100%;
+    gap: 0.5rem;
+    max-height: 60svh;
+    overflow-y: auto;
+}
 #in_game, #in_gameover {
     position: fixed;
     top: 0;
@@ -57,6 +64,8 @@ canvas {
 }
 #in_pause, #in_gameover {
     transition-property: opacity;
+    z-index: 1;
+    background: inherit;
 }
 #in_game {
     transition-property: filter, opacity;

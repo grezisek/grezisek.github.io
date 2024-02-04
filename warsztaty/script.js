@@ -2,6 +2,7 @@ import Initializer from "./modules/initializer.js";
 import Loop from "./modules/loop.js";
 import Graphics from "./modules/graphics.js";
 import Physics from "./modules/physics.js";
+import Particles from "./modules/particles.js";
 import Controls from "./modules/controls.js";
 import Resources from "./modules/resources.js";
 import Sound from "./modules/sound.js";
@@ -14,6 +15,7 @@ const state = {};
 // event creations and connections, refs setup
 Initializer.setup(events, state);
 Loop.setup(events, state);
+Particles.setup(events, state);
 Graphics.setup(events, state);
 Physics.setup(events, state);
 Controls.setup(events, state);
