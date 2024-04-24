@@ -619,8 +619,6 @@
     }
 
     function makeTransition(html, node) {
-        const title = html.split("<title>")[1].split("</title>")[0];
-        document.title = title;
         const tempNode = document.createElement("div");
         tempNode.innerHTML = html;
         const newContent = tempNode.querySelector("#content");
