@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+    body {
+        --transition-short: 0.4s ease;
+        --transition-medium: 0.6s ease;
+        --transition-long: 1s ease-in-out;
+        --bg: radial-gradient(#fffffe, #eeeeef);
+        margin: 0;
+        width: 100vw;
+        height: 100vh;
+        overflow: clip;
+        user-select: none;
+        background: var(--bg);
+    }
+    .preloader {
+        position: fixed;
+        top: 0;
+        left: 0;
+        display: grid;
+        grid-template-columns: 100%;
+        place-items: center;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        background: var(--bg);
+        opacity: 0;
+        transition: opacity var(--transition-long);
+    }
+    .is-loading .preloader,
+    .is-loaded .preloader {
+        opacity: 1;
+    }
+    .preloader__logo {
+        display: block;
+        transform: translate(calc(var(--sx) * 4000px), calc(var(--sy) * 4000px));
+        transition: transform 0.1s linear;
+    }
+    main {
+        --x: 0;
+        --y: 0;
+        --z: 0.5;
+        position: relative;
+        opacity: 0;
+        transition: opacity var(--transition-long);
+    }
+    .is-loaded main {
+        transition-delay: 0.6s;
+        opacity: 1;
+    }
+    .singular {
+        --px: 0;
+        --py: 0;
+        --height: calc(100vw / var(--ratio));
+        --s: 10;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: var(--height);
+        min-height: var(--height);
+        transform: perspective(150cm) translate3d(
+            calc((var(--px) - var(--x) + var(--sx) * var(--s)) * 100vw),
+            calc((var(--py) - var(--y) + var(--sy) * var(--s)) * 100vw),
+            calc(150cm - 1 / var(--z) * 150cm)
+        );
+        transform-origin: top;
+        contain: strict;
+    }
+    .singular:nth-child(7n) {
+        --s: -2
+    }
+    .singular:nth-child(7n + 1) {
+        --s: 3
+    }
+    .singular:nth-child(7n + 2) {
+        --s: 1
+    }
+    .singular:nth-child(7n + 3) {
+        --s: -3
+    }
+    .singular:nth-child(7n + 4) {
+        --s: 0
+    }
+    .singular:nth-child(7n + 5) {
+        --s: -1
+    }
+    .singular:nth-child(7n + 6) {
+        --s: 2
+    }
+
+    .singular.is-transitioning {
+        pointer-events: none;
+        transition: var(--transition-long);
+        transition-property: height, transform;
+        z-index: 1;
+        will-change: height, transform;
+    }
+    .singular.is-full-screen {
+        transition-delay: 0.3s, 0s;
+        --px: 0!important;
+        --py: 0!important;
+        --x: 0!important;
+        --y: 0!important;
+        --z: 1!important;
+        --height: calc(100vh - var(--wp-admin--admin-bar--height, 0px));
+    }
+    .single-project > .singular {
+        --height: calc(100vh - var(--wp-admin--admin-bar--height, 0px));
+    }
+    .singular.is-disappearing {
+        pointer-events: none;
+        transition: var(--transition-long);
+        transition-property: opacity;
+        opacity: 0.5;
+    }
+
+    .singular-hero {
+        position: relative;
+        height: 100%;
+    }
+    .singular-hero__title {
+        position: relative;
+        padding: 5%;
+        margin: 0;
+        transition: opacity var(--transition-long);
+        opacity: var(--content_opacity);
+        z-index: 1;
+    }
+    .singular-hero__img {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 90vw;
+        height: calc(90vw / var(--ratio));
+        min-width: 90vw;
+        min-height: calc(90vw / var(--ratio));
+        object-fit: cover;
+    }
+    .is-loaded .singular-hero__img {
+        transition: width var(--transition-medium), height var(--transition-medium);
+    }
+    .singular:hover .singular-hero__img,
+    .singular:focus-visible .singular-hero__img {
+        width: 93vw;
+        height: calc(93vw / var(--ratio));
+    }
+    .singular.is-transitioning .singular-hero__img {
+        width: 93vw;
+        height: calc(93vw / var(--ratio));
+        min-width: 93vw;
+        min-height: calc(93vw / var(--ratio));
+        will-change: width, height;
+    }
+    .singular.is-full-screen .singular-hero__img {
+        width: 100vw;
+        height: 100vh;
+    }
+    .has-transitioning > .singular:not(.is-transitioning) {
+        pointer-events: none;
+        opacity: 0.5;
+        transform: perspective(150cm) translate3d(
+            calc((var(--px) - var(--x) + var(--sx) * var(--s)) * 100vw),
+            calc((var(--py) - var(--y) + var(--sy) * var(--s)) * 100vw),
+            calc(150cm - 1 / (var(--z) - 0.1) * 150cm)
+        );
+        transition: var(--transition-long);
+        transition-property: opacity, transform;
+        & .singular-hero__img {
+            transition: unset;
+        }
+    }
+    .singular.is-full-screen:not(.is-transitioning) {
+        overflow: hidden auto;
+    }
+
+    .singular-content {
+        padding: 2rem;
+    }
+    .singular-content img {
+        width: 100%;
+        height: auto;
+    }
+</style>
+<script>
+    const simplex2d = (() => {
+        const F2 = 0.5 * (Math.sqrt(3) - 1);
+        const G2 = (3 - Math.sqrt(3)) / 6;
+        const grad2 = [
+            1, 1, -1, 1,
+            1, -1, -1, -1,
+            1, 0, -1, 0,
+            1, 0, -1, 0,
+            0, 1, 0, -1,
+            0, 1, 0, -1
+        ];
+        const perm = new Uint8Array(512);
+        const permGrad2x = new Array(512).fill(0);
+        const permGrad2y = new Array(512).fill(0);
+        perm[255] = 255;
+        for (let i = 0; i < 255; i++) {
+            perm[i] = i;
+            const r = i + ~~(Math.random() * (256 - i));
+            const temp = perm[i];
+            perm[i] = perm[r];
+            perm[r] = temp;
+        }
+        for (let i = 0, ioff = 256; ioff < 512; i++, ioff++) {
+            perm[ioff] = perm[i];
+        }
+        for (let i = 0; i < 512; i++) {
+            permGrad2x[i] = grad2[(permGrad2x[i] % 12) * 2];
+            permGrad2y[i] = grad2[(permGrad2y[i] % 12) * 2 + 1];
+        }
+        return (x, y) => {
+            let n0 = 0;
+            let n1 = 0;
+            let n2 = 0;
+
+            const s = (x + y) * F2;
+            const i = Math.floor(x + s);
+            const j = Math.floor(y + s);
+            const t = (i + j) * G2;
+            const X0 = i - t;
+            const Y0 = j - t;
+            const x0 = x - X0;
+            const y0 = y - Y0;
+
+            let i1, j1;
+            if (x0 > y0) {
+                i1 = 1;
+                j1 = 0;
+            } else {
+                i1 = 0;
+                j1 = 1;
+            }
+            
+            const x1 = x0 - i1 + G2;
+            const y1 = y0 - j1 + G2;
+            const x2 = x0 - 1.0 + 2.0 * G2;
+            const y2 = y0 - 1.0 + 2.0 * G2;
+            const ii = i & 255;
+            const jj = j & 255;
+            let t0 = 0.5 - x0 * x0 - y0 * y0;
+            if (t0 >= 0) {
+                const gi0 = ii + perm[jj];
+                const g0x = permGrad2x[gi0];
+                const g0y = permGrad2y[gi0];
+                t0 *= t0;
+                n0 = t0 * t0 * (g0x * x0 + g0y * y0);
+            }
+            let t1 = 0.5 - x1 * x1 - y1 * y1;
+            if (t1 >= 0) {
+                const gi1 = ii + i1 + perm[jj + j1];
+                const g1x = permGrad2x[gi1];
+                const g1y = permGrad2y[gi1];
+                t1 *= t1;
+                n1 = t1 * t1 * (g1x * x1 + g1y * y1);
+            }
+            let t2 = 0.5 - x2 * x2 - y2 * y2;
+            if (t2 >= 0) {
+                const gi2 = ii + 1 + perm[jj + 1];
+                const g2x = permGrad2x[gi2];
+                const g2y = permGrad2y[gi2];
+                t2 *= t2;
+                n2 = t2 * t2 * (g2x * x2 + g2y * y2);
+            }
+
+            return 70 * (n0 + n1 + n2);
+        }
+    })();
+
+    function lerp(a, b, ratio) {
+        return a * (1 - ratio) + b * ratio;
+    }
+    function clamp(min, value, max) {
+        return Math.max(min, Math.min(value, max));
+    }
+
+    const targetFrametime = 1000/60;
+    const overdragSmoothenStrength = 0.01;
+    const dragSmoothenStrength = 0.05;
+    const scrollSmoothenStrength = 0.02;
+    const scrollInputStrength = 0.0005;
+    const dragInputStrength = 0.0007;
+    const dragMovingThreshold = 2;
+    const noiseSpeed = 0.00002;
+    const noiseInputStrength = 0.0005;
+
+    const animationState = {
+        time: {
+            lastTimestamp: performance.now() - targetFrametime,
+            currentTimestamp: performance.now(),
+            frameTime: targetFrametime,
+            scale: 1,
+        },
+        isTransitioning: true,
+        isClickAllowed: false,
+        unlockClicksTimeout: 0,
+        x: 0,
+        y: 0,
+        z: 1,
+        xStart: 0,
+        yStart: 0,
+        zStart: 0,
+        xTrace: 0,
+        yTrace: 0,
+        xInput: 0,
+        yInput: 0,
+        zInput: 0,
+        xNormRaw: 0,
+        yNormRaw: 0,
+        zNormRaw: 1,
+        xNorm: 0,
+        yNorm: 0,
+        zNorm: 1,
+        xNormOld: 0,
+        yNormOld: 0,
+        zNormOld: 1,
+        xSpeed: 0,
+        ySpeed: 0,
+        zSpeed: 0,
+    };
+    function animationLoop() {
+        animationState.time.currentTimestamp = performance.now();
+        animationState.time.frameTime = animationState.time.currentTimestamp - animationState.time.lastTimestamp;
+        animationState.time.scale = animationState.time.frameTime / targetFrametime;
+
+        if (scrollX || scrollY) {
+            scrollTo(0, 0);
+        }
+        
+        parseInput();
+        animate();
+
+        animationState.time.lastTimestamp = animationState.time.currentTimestamp;
+        animationState.frame = requestAnimationFrame(animationLoop);
+    }
+    function parseInput() {
+        if (!animationState.isTransitioning) {
+            animationState.xNormRaw = clamp(-0.5, animationState.xNormRaw + animationState.xInput, 1.5);
+            animationState.yNormRaw = clamp(-0.5, animationState.yNormRaw + animationState.yInput, 1.5);
+            animationState.zNormRaw = clamp(-0.5, animationState.zNormRaw + animationState.zInput, 1.5);
+        }
+        animationState.xInput = 0;
+        animationState.yInput = 0;
+        animationState.zInput = 0;
+    }
+
+    function animate() {
+        const zsa = Math.min(scrollSmoothenStrength * animationState.time.scale, 1);
+        const zsb = 1 - zsa;
+        let strengthScale = 1;
+        if (animationState.isTransitioning) {
+            strengthScale = 2;
+        }
+        noiseInput: {
+            const noise = performance.now() * noiseSpeed;
+            const noiseX = simplex2d(noise, 0);
+            const noiseY = simplex2d(noise, 6.5);
+            animationState.xNormRaw += noiseX * noiseInputStrength;
+            animationState.yNormRaw += noiseY * noiseInputStrength;
+            animationState.noiseXOld = noiseX;
+            animationState.noiseYOld = noiseY;
+        }
+        smoothenDrag: {
+            if (animationState.isTransitioning) {
+                break smoothenDrag;
+            }
+            const sa = Math.min(dragSmoothenStrength * animationState.time.scale * strengthScale, 1);
+            const sb = 1 - sa;
+            animationState.xNorm = animationState.xNormRaw * sa + animationState.xNorm * sb;
+            animationState.yNorm = animationState.yNormRaw * sa + animationState.yNorm * sb;
+            animationState.zNorm = animationState.zNormRaw * zsa + animationState.zNorm * zsb;
+        }
+        smoothenOverdrag: {
+            const sa = Math.min(overdragSmoothenStrength * animationState.time.scale * strengthScale, 1);
+            const sb = 1 - sa;
+            animationState.xNormRaw = clamp(0, animationState.xNormRaw, 1) * sa + animationState.xNormRaw * sb;
+            animationState.yNormRaw = clamp(0, animationState.yNormRaw, 1) * sa + animationState.yNormRaw * sb;
+            animationState.zNormRaw = clamp(0, animationState.zNormRaw, 1) * zsa + animationState.zNormRaw * zsb;
+        }
+        animationState.xSpeed = animationState.xNorm - animationState.xNormOld;
+        animationState.ySpeed = animationState.yNorm - animationState.yNormOld;
+        animationState.zSpeed = animationState.zNorm - animationState.zNormOld;
+        animationState.xNormOld = animationState.xNorm;
+        animationState.yNormOld = animationState.yNorm;
+        animationState.zNormOld = animationState.zNorm;
+
+        setPositionFromNormalized(animationState.xNorm, animationState.yNorm, animationState.zNorm);
+        setCssAnimationState();
+    }
+    function setCssAnimationState() {
+        content.style.setProperty("--x", animationState.x.toFixed(4).toString());
+        content.style.setProperty("--y", animationState.y.toFixed(4).toString());
+        content.style.setProperty("--z", animationState.z.toFixed(4).toString());
+        content.style.setProperty("--sx", animationState.xSpeed.toFixed(4).toString());
+        content.style.setProperty("--sy", animationState.ySpeed.toFixed(4).toString());
+        content.style.setProperty("--sz", animationState.zSpeed.toFixed(4).toString());
+        preloader.style.setProperty("--sx", animationState.xSpeed.toString());
+        preloader.style.setProperty("--sy", animationState.ySpeed.toString());
+        preloader.style.setProperty("--sz", animationState.zSpeed.toString());
+    }
+
+    function loading() {
+        document.documentElement.classList.add("is-loading");
+        animationState.isSingular = content.children.length == 1;
+        
+        if (animationState.isSingular) {
+            loadSingularNode(content.children[0]);
+        } else {
+            loadMultipleNodes(content.children);
+        }
+
+        setPositionFromNormalized(
+            animationState.xNorm,
+            animationState.yNorm,
+            animationState.zNorm,
+        );
+        setCssAnimationState();
+
+        addEventListener("mousedown", mouseDragStart);
+        addEventListener("wheel", mouseScroll);
+        addEventListener("click", mouseClick, true);
+        
+        animationState.frame = requestAnimationFrame(animationLoop);
+    }
+    document.addEventListener("DOMContentLoaded", loading);
+
+
+    function loadSingularNode(node) {
+        node.classList.add("is-full-screen");
+        node.style.setProperty("--px", "0");
+        node.style.setProperty("--py", "0");
+        animationState.nodesYMax = innerHeight / innerWidth;
+        animationState.xNormRaw = 0;
+        animationState.yNormRaw = 0;
+        animationState.zNormRaw = 1;
+        animationState.xNorm = 0;
+        animationState.yNorm = 0;
+        animationState.zNorm = 1;
+        animationState.xSpeed = 0;
+        animationState.ySpeed = 0;
+        animationState.zSpeed = 0;
+    }
+    function loadMultipleNodes(nodes) {
+        animationState.nodesYMax = 0;
+        for (let col = 0; col < 4; col++) {
+            let y = 0;
+            for (let rowStart = 0; rowStart < nodes.length; rowStart += 4) {
+                nodes[rowStart + col]?.style?.setProperty("--px", col.toString());
+                nodes[rowStart + col]?.style?.setProperty("--py", y.toString());
+                y += 1 / (nodes[rowStart + col]?.style?.getPropertyValue("--ratio") ?? Infinity);
+            }
+            if (y > animationState.nodesYMax) {
+                animationState.nodesYMax = y;
+            }
+        }
+        animationState.xNormRaw = 0.5;
+        animationState.zNormRaw = 0.6;
+        animationState.yNormRaw = 0.5;
+        animationState.xNorm = 0.5;
+        animationState.zNorm = 0;
+        animationState.yNorm = 0.5;
+    }
+
+    function setPositionFromNormalized(xNorm, yNorm, zNorm) {
+        animationState.x = lerp(0, 3, xNorm);
+        animationState.z = lerp(0.5, 1, zNorm);
+        animationState.y = lerp(0, animationState.nodesYMax - innerHeight / innerWidth / animationState.z, yNorm);
+    }
+
+    function loaded() {
+        document.documentElement.classList.remove("is-loading");
+        document.documentElement.classList.add("is-loaded");
+        animationState.isTransitioning = false;
+        animationState.isClickAllowed = true;
+    }
+    addEventListener("load", loaded);
+
+
+    function mouseDragStart(e) {
+        animationState.xStart = e.x;
+        animationState.yStart = e.y;
+        animationState.xTrace = e.x;
+        animationState.yTrace = e.y;
+        addEventListener("mousemove", mouseDragMove);
+        addEventListener("mouseup", mouseDragEnd);
+        addEventListener("mouseleave", mouseDragEnd);
+    }
+    function mouseDragMove(e) {
+        if (animationState.isClickAllowed) {
+            const dx = e.x - animationState.xStart;
+            const dy = e.y - animationState.yStart;
+            if (
+                dx < -dragMovingThreshold
+                || dy < -dragMovingThreshold
+                || dx > dragMovingThreshold
+                || dy > dragMovingThreshold
+            ) {
+                animationState.isClickAllowed = false;
+            }
+        }
+        animationState.xInput -= (e.x - animationState.xTrace) * dragInputStrength;
+        animationState.yInput -= (e.y - animationState.yTrace) * dragInputStrength * 4 / animationState.nodesYMax / animationState.z;
+        animationState.xTrace = e.x;
+        animationState.yTrace = e.y;
+    }
+    function mouseDragEnd(e) {
+        removeEventListener("mousemove", mouseDragMove);
+        removeEventListener("mouseup", mouseDragEnd);
+        removeEventListener("mouseleave", mouseDragEnd);
+        if (!animationState.isClickAllowed) {
+            if (animationState.unlockClicksTimeout) {
+                clearTimeout(animationState.unlockClicksTimeout);
+            }
+            animationState.unlockClicksTimeout = setTimeout(unlockClicks, 15);
+        }
+    }
+    function mouseScroll(e) {
+        animationState.zInput += e.wheelDelta * scrollInputStrength;
+    }
+    function unlockClicks() {
+        animationState.isClickAllowed = true;
+        animationState.unlockClicksTimeout = 0;
+    }
+
+    const navState = {
+        hashIndex: location.href.lastIndexOf("#"),
+        linkPrev: location.href.includes("#") ? location.href.slice(0, location.href.lastIndexOf("#")) : location.href,
+        hrefPrev: null,
+        hrefNew: null,
+        abortController: null,
+    };
+    function mouseClick(e) {
+        if (e.target === content) {
+            return;
+        }
+        if (animationState.isTransitioning || !animationState.isClickAllowed) {
+            e.preventDefault();
+            return;
+        }
+
+        if ((e.target.host ?? location.host) != location.host) {
+            return;
+        }
+
+        const a = e.target.matches(".singular") ? e.target : e.target.closest(".singular");
+        navState.hashIndex = a.href.lastIndexOf("#");
+        navState.linkNew = navState.hashIndex == -1 ? a.href : a.href.slice(0, navState.hashIndex);
+        
+        if (navState.linkPrev == navState.linkNew) {
+            alert("link not changed")
+            return;
+        }
+        navState.linkPrev = navState.linkNew;
+        e.preventDefault();
+
+        navState.hrefPrev = location.href;
+
+        navigate(a.href, true, a);
+    }
+
+    function navigatePopstate(e) {
+        if (animationState.isTransitioning) {
+            e.preventDefault();
+            cancelTransition(e);
+            return;
+        }
+        navState.hashIndex = location.href.lastIndexOf("#");
+        navState.linkNew = navState.hashIndex == -1 ? location.href : location.href.slice(0, navState.hashIndex);
+
+        if (navState.linkPrev == navState.linkNew) {
+            return;
+        }
+        navState.linkPrev = navState.linkNew;
+        e.preventDefault();
+
+        if (navState.hrefNew !== null) {
+            navState.abortController.abort();
+            navState.hrefNew = null;
+
+            if (navState.hrefPrev == location.href) {
+                return;
+            }
+        }
+
+        navigate(location.href, false, animationState.isSingular ? content.children[0] : content);
+    }
+    window.addEventListener("popstate", navigatePopstate);
+
+    async function navigate(href, pushState, node) {
+        animationState.isTransitioning = true;
+        navState.hrefPrev = location.href;
+        navState.abortController = new AbortController();
+        let request = fetch(href, { signal: navState.abortController.signal });
+
+        if (pushState) {
+            history.pushState(null, "", href);
+        }
+
+        request = await request;
+        if (!request.ok) {
+            animationState.isTransitioning = false;
+            document.title = request.statusText;
+            content.innerHTML = `<h1>${request.statusText}</h1>`;
+            throw new Error(request.status);
+        }
+
+        navState.abortController = null;
+
+        const responseHTML = await request.text();
+        await makeTransition(responseHTML, node);
+        animationState.isTransitioning = false;
+    }
+
+    function makeTransition(html, node) {
+        const title = html.split("<title>")[1].split("</title>")[0];
+        document.title = title;
+        const tempNode = document.createElement("div");
+        tempNode.innerHTML = html;
+        const newContent = tempNode.querySelector("#content");
+
+        const oldSingular = animationState.isSingular;
+        animationState.isSingular = newContent.children.length == 1;
+
+        if (oldSingular) {
+            if (animationState.isSingular) {
+                return makeTransitionSS(newContent, node);
+            }
+            return makeTransitionSM(newContent, node);
+        } 
+        if (animationState.isSingular) {
+            return makeTransitionMS(newContent, node);
+        }
+        return makeTransitionMM(newContent, node);
+    }
+
+    function makeTransitionSS(newContent, node) {
+        content.replaceWith(newContent);
+    }
+    function makeTransitionSM(newContent, node) {
+        loadMultipleNodes(newContent.children);
+        const transitioningNodeRef = newContent.querySelector(`[data-singular="${node.dataset.singular}"]`);
+        if (transitioningNodeRef) {
+            const px = transitioningNodeRef.style.getPropertyValue("--px");
+            const py = transitioningNodeRef.style.getPropertyValue("--py");
+            node.style.setProperty("--px", px);
+            node.style.setProperty("--py", py);
+            animationState.xNormRaw = parseInt(px) / 3;
+            animationState.yNormRaw = parseFloat(py) / (animationState.nodesYMax - innerHeight / innerWidth / animationState.z);
+            animationState.zNormRaw = 0.4;
+            
+            animationState.xNorm = animationState.xNormRaw;
+            animationState.zNorm = animationState.zNormRaw;
+            animationState.yNorm = animationState.yNormRaw;
+        } else {
+        }
+        node.classList.add("is-transitioning");
+        content.classList.add("has-transitioning");
+        content.classList = newContent.classList;
+        content.append(...newContent.children);
+
+        return new Promise((res) => {
+            let awaitCount = 2;
+            node.addEventListener("transitionend", (e) => {
+                if (!e.target.matches(".singular")) {
+                    return;
+                }
+                awaitCount--;
+                if (awaitCount) {
+                    return;
+                }
+                animationState.isTransitioning = false;
+                node.classList.remove("is-transitioning");
+                content.classList.remove("has-transitioning");
+                node.classList.add("is-disappearing");
+
+                setTimeout(() => {
+                    content.removeChild(node);
+                    res();
+                }, 1500);
+            });
+            setTimeout(() => {
+                node.classList.remove("is-full-screen");
+            }, 100);
+        });
+    }
+    function makeTransitionMS(newContent, node) {
+        node.classList.add("is-transitioning");
+        content.classList.add("has-transitioning");
+        let awaitCount = 2;
+        return new Promise((res) => {
+            node.addEventListener("transitionend", (e) => {
+                if (!e.target.matches(".singular")) {
+                    return;
+                }
+                awaitCount--;
+                if (awaitCount) {
+                    return;
+                }
+                if (navState.cancelTransition) {
+                    navState.cancelTransition = false;
+                    content.classList.remove("has-transitioning");
+                    node.classList.remove("is-transitioning");
+                    return;
+                }
+                loadSingularNode(newContent.children[0]);
+                
+                content.replaceWith(newContent);
+                
+                setPositionFromNormalized(
+                    animationState.xNorm,
+                    animationState.zNorm,
+                    animationState.yNorm,
+                );
+                
+                setCssAnimationState();
+                res();
+            });
+            setTimeout(() => {
+                if (navState.cancelTransition) {
+                    return;
+                }
+                node.classList.add("is-full-screen");
+            }, 250);
+        });
+    }
+    function makeTransitionMM(newContent, node) {
+        
+        content.replaceWith(newContent);
+        
+    }
+
+
+
+    async function cancelTransition(e) {
+        navState.cancelTransition = true;
+        await cancelTransitionSM(e);
+        animationState.isTransitioning = false;
+        animationState.isClickAllowed = true;
+    }
+    function cancelTransitionSS(e) {
+    }
+    function cancelTransitionSM(e) {
+        navState.linkPrev = location.href.includes("#") ? location.href.slice(0, location.href.lastIndexOf("#")) : location.href;
+        navState.linkNew = null;
+        const node = document.querySelector(".is-transitioning");
+        let awaitCount = 2;
+        return new Promise((res) => {
+            node.addEventListener("transitionend", (e) => {
+                if (!e.target.matches(".singular")) {
+                    return;
+                }
+                awaitCount--;
+                if (awaitCount) {
+                    return;
+                }
+                res();
+            });
+            setTimeout(() => {
+                node.classList.remove("is-full-screen");
+            }, 100);
+        });
+    }
+    function cancelTransitionMS(e) {
+    }
+    function cancelTransitionMM(e) {
+    }
+</script>
+</head>
+<body>
+<div id="preloader" class="preloader">
+    <h1 class="preloader__logo">Lorem ipsum</h1>
+</div><main id="content" class="home"><a class="singular project" data-singular="37" href="https://grezisek.github.io/strona/test/" draggable="false" style="--ratio:1.7777777777778;">
+    <div class="singular-hero">
+    <h2 class="singular-hero__title">Test</h2>
+    <img class="singular-hero__img" src="https://placehold.co/1920x1080" alt="" width="480" height="270" data-width="1920" data-height="1080" loading="eager" draggable="false">
+</div></a><a class="singular project" data-singular="31" href="https://grezisek.github.io/strona/test/" draggable="false" style="--ratio:0.75;">
+    <div class="singular-hero">
+    <h2 class="singular-hero__title">Test</h2>
+    <img class="singular-hero__img" src="https://placehold.co/768x1024" alt="" width="480" height="640" data-width="1920" data-height="2560" loading="eager" draggable="false">
+</div></a><a class="singular project" data-singular="30" href="https://grezisek.github.io/strona/test/" draggable="false" style="--ratio:1.7777777777778;">
+    <div class="singular-hero">
+    <h2 class="singular-hero__title">Test</h2>
+    <img class="singular-hero__img" src="https://placehold.co/1920x1080" alt="" width="480" height="270" data-width="1920" data-height="1080" loading="eager" draggable="false">
+</div></a><a class="singular project" data-singular="29" href="https://grezisek.github.io/strona/test/" draggable="false" style="--ratio:1.7777777777778;">
+    <div class="singular-hero">
+    <h2 class="singular-hero__title">Test</h2>
+    <img class="singular-hero__img" src="https://placehold.co/1920x1080" alt="" width="480" height="270" data-width="1920" data-height="1080" loading="eager" draggable="false">
+</div></a><a class="singular project" data-singular="28" href="https://grezisek.github.io/strona/test/" draggable="false" style="--ratio:1.7777777777778;">
+    <div class="singular-hero">
+    <h2 class="singular-hero__title">Test</h2>
+    <img class="singular-hero__img" src="https://placehold.co/1920x1080" alt="" width="480" height="270" data-width="1920" data-height="1080" loading="eager" draggable="false">
+</div></a><a class="singular project" data-singular="27" href="https://grezisek.github.io/strona/test/" draggable="false" style="--ratio:1.7777777777778;">
+    <div class="singular-hero">
+    <h2 class="singular-hero__title">Test</h2>
+    <img class="singular-hero__img" src="https://placehold.co/1920x1080" alt="" width="480" height="270" data-width="1920" data-height="1080" loading="eager" draggable="false">
+</div></a><a class="singular project" data-singular="26" href="https://grezisek.github.io/strona/test/" draggable="false" style="--ratio:0.75;">
+    <div class="singular-hero">
+    <h2 class="singular-hero__title">Test</h2>
+    <img class="singular-hero__img" src="https://placehold.co/768x1024" alt="" width="480" height="640" data-width="1920" data-height="2560" loading="eager" draggable="false">
+</div></a><a class="singular project" data-singular="25" href="https://grezisek.github.io/strona/test/" draggable="false" style="--ratio:1.7777777777778;">
+    <div class="singular-hero">
+    <h2 class="singular-hero__title">Test</h2>
+    <img class="singular-hero__img" src="https://placehold.co/1920x1080" alt="" width="480" height="270" data-width="1920" data-height="1080" loading="eager" draggable="false">
+</div></a><a class="singular project" data-singular="24" href="https://grezisek.github.io/strona/test/" draggable="false" style="--ratio:1.7777777777778;">
+    <div class="singular-hero">
+    <h2 class="singular-hero__title">Test</h2>
+    <img class="singular-hero__img" src="https://placehold.co/1920x1080" alt="" width="480" height="270" data-width="1920" data-height="1080" loading="eager" draggable="false">
+</div></a><a class="singular project" data-singular="23" href="https://grezisek.github.io/strona/test/" draggable="false" style="--ratio:0.75;">
+    <div class="singular-hero">
+    <h2 class="singular-hero__title">Test</h2>
+    <img class="singular-hero__img" src="https://placehold.co/768x1024" alt="" width="480" height="640" data-width="1920" data-height="2560" loading="eager" draggable="false">
+</div></a><a class="singular project" data-singular="22" href="https://grezisek.github.io/strona/test/" draggable="false" style="--ratio:1.7777777777778;">
+    <div class="singular-hero">
+    <h2 class="singular-hero__title">Test</h2>
+    <img class="singular-hero__img" src="https://placehold.co/1920x1080" alt="" width="480" height="270" data-width="1920" data-height="1080" loading="eager" draggable="false">
+</div></a><a class="singular project" data-singular="39" href="https://grezisek.github.io/strona/test/" draggable="false" style="--ratio:1.7777777777778;">
+    <div class="singular-hero">
+    <h2 class="singular-hero__title">Test</h2>
+    <img class="singular-hero__img" src="https://placehold.co/1920x1080" alt="" width="480" height="270" data-width="1920" data-height="1080" loading="eager" draggable="false">
+</div></a><a class="singular project" data-singular="38" href="https://grezisek.github.io/strona/test/" draggable="false" style="--ratio:1.7777777777778;">
+    <div class="singular-hero">
+    <h2 class="singular-hero__title">Test</h2>
+    <img class="singular-hero__img" src="https://placehold.co/1920x1080" alt="" width="480" height="270" data-width="1920" data-height="1080" loading="eager" draggable="false">
+</div></a><a class="singular project" data-singular="36" href="https://grezisek.github.io/strona/test/" draggable="false" style="--ratio:1.7777777777778;">
+    <div class="singular-hero">
+    <h2 class="singular-hero__title">Test</h2>
+    <img class="singular-hero__img" src="https://placehold.co/1920x1080" alt="" width="480" height="270" data-width="1920" data-height="1080" loading="eager" draggable="false">
+</div></a><a class="singular project" data-singular="35" href="https://grezisek.github.io/strona/test/" draggable="false" style="--ratio:0.75;">
+    <div class="singular-hero">
+    <h2 class="singular-hero__title">Test</h2>
+    <img class="singular-hero__img" src="https://placehold.co/768x1024" alt="" width="480" height="640" data-width="1920" data-height="2560" loading="eager" draggable="false">
+</div></a><a class="singular project" data-singular="34" href="https://grezisek.github.io/strona/test/" draggable="false" style="--ratio:1.7777777777778;">
+    <div class="singular-hero">
+    <h2 class="singular-hero__title">Test</h2>
+    <img class="singular-hero__img" src="https://placehold.co/1920x1080" alt="" width="480" height="270" data-width="1920" data-height="1080" loading="eager" draggable="false">
+</div></a><a class="singular project" data-singular="33" href="https://grezisek.github.io/strona/test/" draggable="false" style="--ratio:0.75;">
+    <div class="singular-hero">
+    <h2 class="singular-hero__title">Test</h2>
+    <img class="singular-hero__img" src="https://placehold.co/768x1024" alt="" width="480" height="640" data-width="1920" data-height="2560" loading="eager" draggable="false">
+</div></a><a class="singular project" data-singular="32" href="https://grezisek.github.io/strona/test/" draggable="false" style="--ratio:1.7777777777778;">
+    <div class="singular-hero">
+    <h2 class="singular-hero__title">Test</h2>
+    <img class="singular-hero__img" src="https://placehold.co/1920x1080" alt="" width="480" height="270" data-width="1920" data-height="1080" loading="eager" draggable="false">
+</div></a><a class="singular project" data-singular="20" href="https://grezisek.github.io/strona/test/" draggable="false" style="--ratio:1.7777777777778;">
+    <div class="singular-hero">
+    <h2 class="singular-hero__title">Test</h2>
+    <img class="singular-hero__img" src="https://placehold.co/1920x1080" alt="" width="480" height="270" data-width="1920" data-height="1080" loading="eager" draggable="false">
+</div></a></main>
+</body>
+</html>
