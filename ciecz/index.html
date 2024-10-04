@@ -8,13 +8,11 @@
 <body>
 <h1>Symulacja cieczy</h1>
 <p>Lewy przycisk myszy odpycha ciecz (lub przyciąga, gdy przytrzymasz ctrl)</p>
-<form>
-    <label>
-        Ilość
-        <input type="range" id="count" step="100" min="1000" max="15000" value="3000" oninput="count_out.value = count.value">
-        <output for="count" id="count_out">3000</output>
-    </label>
-</form>
+<label>
+    Ilość
+    <input type="range" id="count" step="100" min="1000" max="20000" value="3000" oninput="count_out.value = count.value">
+    <output for="count" id="count_out">3000</output>
+</label>
 <label>
     Grawitacja
     <input type="range" id="G" step="0.0001" min="0" max="0.02" value="0.0098" oninput="G_out.value = G.value">
@@ -36,7 +34,6 @@
     const wallDamp = 0.99;
     const drawRadius = 16;
     const cellCapacity = 16;
-    // const G = 0.0098;
     const explosionSize = 7;
     
     const futureFrametime = 5;
@@ -91,194 +88,6 @@
     fn fragment(@location(0) color: vec4<f32>) -> @location(0) vec4<f32> {
         return color;
     }`;
-    
-    const pass0 = `fn pass0(pi: u32) {
-        velVis[pi].z = 0;
-        velVis[pi].w = 0;
-        
-        if (interaction[0] == 1) {
-            var dx = interaction[2] - positions[0][pi].x;
-            var dy = interaction[3] - positions[0][pi].y;
-            var distSq = pow(dx, 2) + pow(dy, 2);
-            if (distSq < ${explosionRadius**2}) {
-                var dist = pow(distSq, 0.5);
-                var nx = dx / dist;
-                var ny = dy / dist;
-                var s = ${explosionRadius} - dist;
-                
-                if (interaction[1] == 1) {
-                    velVis[pi].x += nx * s / 6000 * ${fixedFrametime};
-                    velVis[pi].y += ny * s / 6000 * ${fixedFrametime};
-                } else {
-                    velVis[pi].x -= nx * s / 1500 * ${fixedFrametime};
-                    velVis[pi].y -= ny * s / 1500 * ${fixedFrametime};
-                }
-            }
-        }
-
-        positions[1][pi] = positions[0][pi] + velVis[pi].xy * ${futureFrametime};
-    }`;
-    const pass1 = `fn pass1(pi: u32) {
-        var gridPos = posToGridPos(positions[0][pi]);
-        densities[pi] = 0.0;
-        var cell: array<u32, ${cellCapacity}>;
-        var _len: i32;
-        velVis[pi].z = 0;
-        velVis[pi].w = 0;
-        for (var ox = -1; ox <= 1; ox++) {
-            var gx = gridPos.x + ox;
-            for (var oy = -1; oy <= 1; oy++) {
-                var gy = gridPos.y + oy;
-                cell = grid[passIndexes[0]][gx][gy];
-                _len = i32(cell[0]);
-                for (var ni = 1; ni <= _len; ni++) {
-                    var _pi = cell[ni];
-                    if (pi == _pi) {
-                        continue;
-                    }
-
-                    var futureDistSq = pow(positions[1][_pi].x - positions[1][pi].x, 2)
-                        + pow(positions[1][_pi].y - positions[1][pi].y, 2);
-
-                    if (futureDistSq > ${cellEdge**2}) {
-                        continue;
-                    }
-
-                    var dd = pow(${cellEdge} - pow(futureDistSq, 0.5), 2);
-                    densities[pi] += dd;
-                    velVis[pi].z += (velVis[_pi].x - velVis[pi].x) * dd;
-                    velVis[pi].w += (velVis[_pi].y - velVis[pi].y) * dd;
-                }
-            }
-        }
-        densities[pi] /= ${Math.PI * (cellEdge**4) / 6};
-
-        velVis[pi].z *= interaction[5] / ${(Math.PI * (cellEdge**4) / 6)};
-        velVis[pi].w *= interaction[5] / ${(Math.PI * (cellEdge**4) / 6)};
-    }`;
-    const pass2 = `fn pass2(pi: u32) {
-        var gridPos = posToGridPos(positions[0][pi]);
-        var force = vec2<f32>(0, 0);
-        if (densities[pi] > 0) {
-            var _cell: array<u32, ${cellCapacity}>;
-            var _len: i32;
-            for (var ox = -1; ox <= 1; ox++) {
-                var gx = gridPos.x + ox;
-                for (var oy = -1; oy <= 1; oy++) {
-                    var gy = gridPos.y + oy;
-                    _cell = grid[passIndexes[0]][gx][gy];
-                    _len = i32(_cell[0]);
-                    for (var ni = 1; ni <= _len; ni++) {
-                        var _pi = _cell[ni];
-                        if (pi == _pi) {
-                            continue;
-                        }
-                        if (densities[_pi] == 0) {
-                            continue;
-                        }
-                        var manDistFuture = positions[1][_pi] - positions[1][pi];
-                        var eucDistSqFuture = pow(manDistFuture.x, 2) + pow(manDistFuture.y, 2);
-                        if (eucDistSqFuture > ${cellEdge**2}) {
-                            continue;
-                        }
-                        var eucDistFuture: f32;
-                        if (eucDistSqFuture < 1) {
-                            eucDistFuture = 1;
-                        } else {
-                            eucDistFuture = pow(eucDistSqFuture, 0.5);
-                        }
-                        var twoDensities = (
-                            (densities[pi] - ${targetDensity}) / densities[pi]
-                            + (densities[_pi] - ${targetDensity}) / densities[_pi]
-                        );
-                        if (twoDensities < 0) {
-                            twoDensities = max(${minNegativeTwoDensities}, twoDensities);
-                        }
-
-                        var eigenVec = manDistFuture / eucDistFuture;
-                        force += eigenVec * twoDensities * (eucDistFuture - ${cellEdge});
-                    }
-                }
-            }
-            force *= ${pressureMult * 6 / ((cellEdge**4) * Math.PI)} / densities[pi];
-        }
-
-
-        force -= vec2<f32>(0, interaction[4]);
-        if (densities[pi] < ${targetDensity}) {
-            force -= sign(velVis[pi].xy) * pow(velVis[pi].xy, vec2(2, 2)) * ${airFriction};
-        } else {
-            force += velVis[pi].zw * densities[pi] / ${targetDensity};
-            force -= sign(velVis[pi].xy) * pow(velVis[pi].xy, vec2(2, 2)) * densities[pi] / 2 * ${fluidFriction};
-        }
-
-        var newVel = velVis[pi].xy + force * ${fixedFrametime};
-        var newPos = positions[0][pi] + newVel * ${fixedFrametime};
-        if (newPos.x < 1) {
-            newVel.x = abs(newVel.x) * ${wallDamp};
-            newPos.x = 1;
-        } else if (newPos.x >= ${simulationWidth - 1}) {
-            newVel.x = -abs(newVel.x) * ${wallDamp};
-            newPos.x = ${simulationWidth - 2};
-        }
-        if (newPos.y < 1) {
-            newVel.y = abs(newVel.y) * ${wallDamp};
-            newPos.y = 1;
-        } else if (newPos.y >= ${simulationHeight - 1}) {
-            newVel.y = -abs(newVel.y) * ${wallDamp};
-            newPos.y = ${simulationHeight};
-        }
-        positions[0][pi] = newPos;
-        velVis[pi].x = newVel.x;
-        velVis[pi].y = newVel.y;
-        
-        var gridPosNew = posToGridPos(positions[0][pi]);
-        var length = grid[passIndexes[1]][gridPosNew.x][gridPosNew.y][0] + 1;
-        grid[passIndexes[1]][gridPosNew.x][gridPosNew.y][length] = pi;
-        grid[passIndexes[1]][gridPosNew.x][gridPosNew.y][0] = length;
-    }`;
-    const computeShaderCode = `
-    @group(0) @binding(0) var<storage, read_write> interaction : array<f32, 7>;
-    @group(0) @binding(1) var<storage, read_write> positions : array<array<vec2<f32>, ${maxCount}>, 2>;
-    @group(0) @binding(2) var<storage, read_write> todo : array<vec2<f32>, ${maxCount}>;
-    @group(0) @binding(3) var<storage, read_write> velVis : array<vec4<f32>, ${maxCount}>;
-    @group(0) @binding(4) var<storage, read_write> densities : array<f32, ${maxCount}>;
-    @group(0) @binding(5) var<storage, read_write> grid : array<array<array<array<u32, ${cellCapacity}>, ${cellsY}>, ${cellsX}>, 2>;
-    @group(0) @binding(6) var<storage, read_write> passIndexes : array<u32, 3>;
-    @group(0) @binding(7) var<storage, read_write> out : array<vec4<f32>, ${maxCount}>;
-    @compute @workgroup_size(${workgroupX}, 1, 1) fn main(
-        @builtin(global_invocation_id) id: vec3u
-    ) {
-        if (id.x >= u32(interaction[6])) {
-            return;
-        } 
-        if (passIndexes[2] == 0) {
-            pass0(id.x);
-            return;
-        }
-        if (passIndexes[2] == 1) {
-            pass1(id.x);
-            return;
-        }
-        pass2(id.x);
-
-        out[id.x].x = positions[0][id.x].x;
-        out[id.x].y = positions[0][id.x].y;
-
-        out[id.x].z = (abs(velVis[id.x].x) + abs(velVis[id.x].y)) * 0.2;
-        out[id.x].w = pow(1.5 + abs(velVis[id.x].x) + abs(velVis[id.x].y), 1.1) * 0.3;
-    }
-    ${pass0}
-    ${pass1}
-    ${pass2}
-
-    fn posToGridPos(pos: vec2<f32>) -> vec2<i32> {
-        return vec2<i32>(
-            i32(floor(pos.x / ${cellEdge})) + 1,
-            i32(floor(pos.y / ${cellEdge})) + 1,
-        );
-    }
-    `;
 
     const verticesBuffer = device.createBuffer({
         size: 32,
@@ -293,17 +102,18 @@
     ]);
     verticesBuffer.unmap();
 
+    const emptyGridBuffer = device.createBuffer({
+        size: gridBufferSize,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
+    });
+
     const interactionBuffer = device.createBuffer({
         size: 28,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
     });
     const positionsBuffer = device.createBuffer({
-        size: maxCount * 8 * 2,
+        size: maxCount * 8 * 3,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
-    });
-    const forcesBuffer = device.createBuffer({
-        size: maxCount * 8,
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
     });
     const velVisBuffer = device.createBuffer({
         size: maxCount * 8 * 2,
@@ -326,80 +136,307 @@
         size: maxCount * 16,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
     });
-    const computePipeline = device.createComputePipeline({
-        layout: device.createPipelineLayout({
-            bindGroupLayouts: [
-                device.createBindGroupLayout({
-                    entries: [
-                        {
-                            binding: 0,
-                            visibility: GPUShaderStage.COMPUTE,
-                            buffer: { type: "storage" },
-                        },
-                        {
-                            binding: 1,
-                            visibility: GPUShaderStage.COMPUTE,
-                            buffer: { type: "storage" },
-                        },
-                        {
-                            binding: 2,
-                            visibility: GPUShaderStage.COMPUTE,
-                            buffer: { type: "storage" },
-                        },
-                        {
-                            binding: 3,
-                            visibility: GPUShaderStage.COMPUTE,
-                            buffer: { type: "storage" },
-                        },
-                        {
-                            binding: 4,
-                            visibility: GPUShaderStage.COMPUTE,
-                            buffer: { type: "storage" },
-                        },
-                        {
-                            binding: 5,
-                            visibility: GPUShaderStage.COMPUTE,
-                            buffer: { type: "storage" },
-                        },
-                        {
-                            binding: 6,
-                            visibility: GPUShaderStage.COMPUTE,
-                            buffer: { type: "storage" },
-                        },
-                        {
-                            binding: 7,
-                            visibility: GPUShaderStage.COMPUTE,
-                            buffer: { type: "storage" },
-                        },
-                    ],
-                })
-            ],
-        }),
-        compute: {
-            module: device.createShaderModule({ code: computeShaderCode }),
-            entryPoint: "main",
+    const allEntries = [
+        {
+            binding: 0,
+            visibility: GPUShaderStage.COMPUTE,
+            buffer: { type: "storage" },
+            resource: { buffer: interactionBuffer },
         },
-    });
-    const computeBindGroup = device.createBindGroup({
-        layout: computePipeline.getBindGroupLayout(0),
-        entries: [
-            { binding: 0, resource: { buffer: interactionBuffer } },
-            { binding: 1, resource: { buffer: positionsBuffer } },
-            { binding: 2, resource: { buffer: forcesBuffer } },
-            { binding: 3, resource: { buffer: velVisBuffer } },
-            { binding: 4, resource: { buffer: densitiesBuffer } },
-            { binding: 5, resource: { buffer: gridBuffer } },
-            { binding: 6, resource: { buffer: passIndexesBuffer } },
-            { binding: 7, resource: { buffer: computeOutBuffer } },
-        ]
-    });
-    const emptyGridBuffer = device.createBuffer({
-        size: gridBufferSize,
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
-    });
-    
-    const fnSelector = new Uint32Array([0]);
-    const passIndexes = new Uint32Array([1, 0, fnSelector[0]]);
+        {
+            binding: 1,
+            visibility: GPUShaderStage.COMPUTE,
+            buffer: { type: "storage" },
+            resource: { buffer: positionsBuffer },
+        },
+        {
+            binding: 2,
+            visibility: GPUShaderStage.COMPUTE,
+            buffer: { type: "storage" },
+            resource: { buffer: velVisBuffer },
+        },
+        {
+            binding: 3,
+            visibility: GPUShaderStage.COMPUTE,
+            buffer: { type: "storage" },
+            resource: { buffer: densitiesBuffer },
+        },
+        {
+            binding: 4,
+            visibility: GPUShaderStage.COMPUTE,
+            buffer: { type: "storage" },
+            resource: { buffer: gridBuffer },
+        },
+        {
+            binding: 5,
+            visibility: GPUShaderStage.COMPUTE,
+            buffer: { type: "storage" },
+            resource: { buffer: passIndexesBuffer },
+        },
+        {
+            binding: 6,
+            visibility: GPUShaderStage.COMPUTE,
+            buffer: { type: "storage" },
+            resource: { buffer: computeOutBuffer },
+        },
+    ];
+    const fnPosToGridPos = `
+        fn posToGridPos(pos: vec2<f32>) -> vec2<i32> {
+            return vec2<i32>(
+                i32(floor(pos.x / ${cellEdge})) + 1,
+                i32(floor(pos.y / ${cellEdge})) + 1,
+            );
+        }
+    `;
+    const passes = [
+        {
+            entries: allEntries.slice(0, 3),
+            bindingsCode: `
+                @group(0) @binding(0) var<storage, read_write> interaction : array<f32, 7>;
+                @group(0) @binding(1) var<storage, read_write> positions : array<array<vec2<f32>, ${maxCount}>, 2>;
+                @group(0) @binding(2) var<storage, read_write> velVis : array<vec4<f32>, ${maxCount}>;
+            `,
+            mainCode: `
+                fn main(
+                    @builtin(global_invocation_id) id: vec3u
+                ) {
+                    let pi = id.x;
+                    velVis[pi].z = 0;
+                    velVis[pi].w = 0;
+                    
+                    if (interaction[0] == 1) {
+                        var dx = interaction[2] - positions[0][pi].x;
+                        var dy = interaction[3] - positions[0][pi].y;
+                        var distSq = pow(dx, 2) + pow(dy, 2);
+                        if (distSq < ${explosionRadius**2}) {
+                            var dist = pow(distSq, 0.5);
+                            var nx = dx / dist;
+                            var ny = dy / dist;
+                            var s = ${explosionRadius} - dist;
+                            
+                            if (interaction[1] == 1) {
+                                velVis[pi].x += nx * s / 6000 * ${fixedFrametime};
+                                velVis[pi].y += ny * s / 6000 * ${fixedFrametime};
+                            } else {
+                                velVis[pi].x -= nx * s / 1500 * ${fixedFrametime};
+                                velVis[pi].y -= ny * s / 1500 * ${fixedFrametime};
+                            }
+                        }
+                    }
+
+                    positions[1][pi] = positions[0][pi] + velVis[pi].xy * ${futureFrametime};
+                }
+            `,
+            workgroupSizeX: 32,
+        },
+        {
+            entries: allEntries.slice(0, 6),
+            bindingsCode: `
+                @group(0) @binding(0) var<storage, read_write> interaction : array<f32, 7>;
+                @group(0) @binding(1) var<storage, read_write> positions : array<array<vec2<f32>, ${maxCount}>, 2>;
+                @group(0) @binding(2) var<storage, read_write> velVis : array<vec4<f32>, ${maxCount}>;
+                @group(0) @binding(3) var<storage, read_write> densities : array<f32, ${maxCount}>;
+                @group(0) @binding(4) var<storage, read_write> grid : array<array<array<array<u32, ${cellCapacity}>, ${cellsY}>, ${cellsX}>, 2>;
+                @group(0) @binding(5) var<storage, read_write> passIndexes : array<u32, 3>;
+            `,
+            mainCode: `
+                fn main(
+                    @builtin(global_invocation_id) id: vec3u
+                ) {
+                    let pi = id.x;
+                    var gridPos = posToGridPos(positions[0][pi]);
+                    densities[pi] = 0.0;
+                    var cell: array<u32, ${cellCapacity}>;
+                    var _len: i32;
+                    velVis[pi].z = 0;
+                    velVis[pi].w = 0;
+                    for (var ox = -1; ox <= 1; ox++) {
+                        var gx = gridPos.x + ox;
+                        for (var oy = -1; oy <= 1; oy++) {
+                            var gy = gridPos.y + oy;
+                            cell = grid[passIndexes[0]][gx][gy];
+                            _len = i32(cell[0]);
+                            for (var ni = 1; ni <= _len; ni++) {
+                                var _pi = cell[ni];
+                                if (pi == _pi) {
+                                    continue;
+                                }
+
+                                var futureDistSq = pow(positions[1][_pi].x - positions[1][pi].x, 2)
+                                    + pow(positions[1][_pi].y - positions[1][pi].y, 2);
+
+                                if (futureDistSq > ${cellEdge**2}) {
+                                    continue;
+                                }
+
+                                var dd = pow(${cellEdge} - pow(futureDistSq, 0.5), 2);
+                                densities[pi] += dd;
+                                velVis[pi].z += (velVis[_pi].x - velVis[pi].x) * dd;
+                                velVis[pi].w += (velVis[_pi].y - velVis[pi].y) * dd;
+                            }
+                        }
+                    }
+                    densities[pi] /= ${Math.PI * (cellEdge**4) / 6};
+
+                    velVis[pi].z *= interaction[5] / ${(Math.PI * (cellEdge**4) / 6)};
+                    velVis[pi].w *= interaction[5] / ${(Math.PI * (cellEdge**4) / 6)};
+                }
+                ${fnPosToGridPos}
+            `,
+            workgroupSizeX: 32,
+        },
+        {
+            entries: allEntries.slice(0, 7),
+            bindingsCode: `
+                @group(0) @binding(0) var<storage, read_write> interaction : array<f32, 7>;
+                @group(0) @binding(1) var<storage, read_write> positions : array<array<vec2<f32>, ${maxCount}>, 3>;
+                @group(0) @binding(2) var<storage, read_write> velVis : array<vec4<f32>, ${maxCount}>;
+                @group(0) @binding(3) var<storage, read_write> densities : array<f32, ${maxCount}>;
+                @group(0) @binding(4) var<storage, read_write> grid : array<array<array<array<u32, ${cellCapacity}>, ${cellsY}>, ${cellsX}>, 2>;
+                @group(0) @binding(5) var<storage, read_write> passIndexes : array<u32, 3>;
+                @group(0) @binding(6) var<storage, read_write> out : array<vec4<f32>, ${maxCount}>;
+            `,
+            mainCode: `
+                fn main(
+                    @builtin(global_invocation_id) id: vec3u
+                ) {
+                    let pi = id.x;
+                    var gridPos = posToGridPos(positions[0][pi]);
+                    var force = vec2<f32>(0, 0);
+                    if (densities[pi] > 0) {
+                        var _cell: array<u32, ${cellCapacity}>;
+                        var _len: i32;
+                        for (var ox = -1; ox <= 1; ox++) {
+                            var gx = gridPos.x + ox;
+                            for (var oy = -1; oy <= 1; oy++) {
+                                var gy = gridPos.y + oy;
+                                _cell = grid[passIndexes[0]][gx][gy];
+                                _len = i32(_cell[0]);
+                                for (var ni = 1; ni <= _len; ni++) {
+                                    var _pi = _cell[ni];
+                                    if (pi == _pi) {
+                                        continue;
+                                    }
+                                    if (densities[_pi] == 0) {
+                                        continue;
+                                    }
+                                    var manDistFuture = positions[1][_pi] - positions[1][pi];
+                                    var eucDistSqFuture = pow(manDistFuture.x, 2) + pow(manDistFuture.y, 2);
+                                    if (eucDistSqFuture > ${cellEdge**2}) {
+                                        continue;
+                                    }
+                                    var eucDistFuture: f32;
+                                    if (eucDistSqFuture < 1) {
+                                        eucDistFuture = 1;
+                                    } else {
+                                        eucDistFuture = pow(eucDistSqFuture, 0.5);
+                                    }
+                                    var twoDensities = (
+                                        (densities[pi] - ${targetDensity}) / densities[pi]
+                                        + (densities[_pi] - ${targetDensity}) / densities[_pi]
+                                    );
+                                    if (twoDensities < 0) {
+                                        twoDensities = max(${minNegativeTwoDensities}, twoDensities);
+                                    }
+
+                                    var eigenVec = manDistFuture / eucDistFuture;
+                                    force += eigenVec * twoDensities * (eucDistFuture - ${cellEdge});
+                                }
+                            }
+                        }
+                        force *= ${pressureMult * 6 / ((cellEdge**4) * Math.PI)} / densities[pi];
+                    }
+
+
+                    force -= vec2<f32>(0, interaction[4]);
+                    if (densities[pi] < ${targetDensity}) {
+                        force -= sign(velVis[pi].xy) * pow(velVis[pi].xy, vec2(2, 2)) * ${airFriction};
+                    } else {
+                        force += velVis[pi].zw * densities[pi] / ${targetDensity};
+                        force -= sign(velVis[pi].xy) * pow(velVis[pi].xy, vec2(2, 2)) * densities[pi] / 2 * ${fluidFriction};
+                    }
+
+                    var newVel = velVis[pi].xy + force * ${fixedFrametime};
+                    var newPos = positions[0][pi] + newVel * ${fixedFrametime};
+                    if (newPos.x < 1) {
+                        newVel.x = abs(newVel.x) * ${wallDamp};
+                        newPos.x = 1;
+                    } else if (newPos.x >= ${simulationWidth - 1}) {
+                        newVel.x = -abs(newVel.x) * ${wallDamp};
+                        newPos.x = ${simulationWidth - 2};
+                    }
+                    if (newPos.y < 1) {
+                        newVel.y = abs(newVel.y) * ${wallDamp};
+                        newPos.y = 1;
+                    } else if (newPos.y >= ${simulationHeight - 1}) {
+                        newVel.y = -abs(newVel.y) * ${wallDamp};
+                        newPos.y = ${simulationHeight};
+                    }
+                    positions[2][pi] = newPos;
+                    velVis[pi].x = newVel.x;
+                    velVis[pi].y = newVel.y;
+
+                    var gridPosNew = posToGridPos(positions[2][pi]);
+                    var length = grid[passIndexes[1]][gridPosNew.x][gridPosNew.y][0] + 1;
+                    grid[passIndexes[1]][gridPosNew.x][gridPosNew.y][length] = pi;
+                    grid[passIndexes[1]][gridPosNew.x][gridPosNew.y][0] = length;
+                }
+                ${fnPosToGridPos}
+            `,
+            workgroupSizeX: 2,
+        },
+        {
+            entries: [allEntries[1], allEntries[2], allEntries[6]],
+            bindingsCode: `
+                @group(0) @binding(1) var<storage, read_write> positions : array<array<vec2<f32>, ${maxCount}>, 3>;
+                @group(0) @binding(2) var<storage, read_write> velVis : array<vec4<f32>, ${maxCount}>;
+                @group(0) @binding(6) var<storage, read_write> out : array<vec4<f32>, ${maxCount}>;
+            `,
+            mainCode: `
+                fn main(
+                    @builtin(global_invocation_id) id: vec3u
+                ) {
+                    let pi = id.x;
+                    positions[0][id.x].x = positions[2][id.x].x;
+                    positions[0][id.x].y = positions[2][id.x].y;
+
+                    out[id.x].x = positions[0][id.x].x;
+                    out[id.x].y = positions[0][id.x].y;
+                    out[id.x].z = (abs(velVis[id.x].x) + abs(velVis[id.x].y)) * 0.2;
+                    out[id.x].w = pow(1.5 + abs(velVis[id.x].x) + abs(velVis[id.x].y), 1.1) * 0.3;
+                }
+                ${fnPosToGridPos}
+            `,
+            workgroupSizeX: 32,
+        },
+    ];
+    for (let pass of passes) {
+        pass.pipeline = device.createComputePipeline({
+            layout: device.createPipelineLayout({
+                bindGroupLayouts: [ device.createBindGroupLayout({ entries: pass.entries }) ],
+            }),
+            compute: {
+                module: device.createShaderModule({
+                    code: `
+                        ${pass.bindingsCode}
+                        @compute @workgroup_size(${pass.workgroupSizeX}, 1, 1) ${pass.mainCode}
+                    `,
+                    label: "pass",
+                }),
+                entryPoint: "main",
+            },
+        });
+        pass.bindGroup = device.createBindGroup({
+            layout: pass.pipeline.getBindGroupLayout(0),
+            entries: pass.entries,
+        });
+        
+        delete pass.entries;
+        delete pass.bindingsCode;
+        delete pass.mainCode;
+    }
+
+    const passIndexes = new Uint32Array([1, 0]);
     device.queue.writeBuffer(passIndexesBuffer, 0, passIndexes.buffer);
 
     const initialPositions = new Float32Array(maxCount * 2);
@@ -498,33 +535,26 @@
         commandEncoder.copyBufferToBuffer(
             emptyGridBuffer, 0,
             gridBuffer, passIndexes[0] * gridBufferSize,
-            gridBufferSize
+            gridBufferSize,
         );
+        queue[0] = commandEncoder.finish();
+        device.queue.submit(queue);
 
         const temp = passIndexes[0];
         passIndexes[0] = passIndexes[1];
         passIndexes[1] = temp;
         device.queue.writeBuffer(passIndexesBuffer, 0, passIndexes.buffer);
-        makePass(commandEncoder);
-        
-        fnSelector[0] = 1;
-        device.queue.writeBuffer(passIndexesBuffer, 8, fnSelector.buffer);
-        commandEncoder = device.createCommandEncoder();
-        makePass(commandEncoder);
-        
-        fnSelector[0] = 2;
-        device.queue.writeBuffer(passIndexesBuffer, 8, fnSelector.buffer);
-        commandEncoder = device.createCommandEncoder();
-        makePass(commandEncoder);
-    }
-    function makePass(commandEncoder) {
-        const pass = commandEncoder.beginComputePass();
-        pass.setPipeline(computePipeline);
-        pass.setBindGroup(0, computeBindGroup);
-        pass.dispatchWorkgroups(count.valueAsNumber / workgroupX);
-        pass.end();
-        queue[0] = commandEncoder.finish();
-        device.queue.submit(queue);
+
+        for (let { pipeline, bindGroup, workgroupSizeX } of passes) {
+            const commandEncoder = device.createCommandEncoder();
+            const pass = commandEncoder.beginComputePass();
+            pass.setPipeline(pipeline);
+            pass.setBindGroup(0, bindGroup);
+            pass.dispatchWorkgroups(count.valueAsNumber / workgroupSizeX);
+            pass.end();
+            queue[0] = commandEncoder.finish();
+            device.queue.submit(queue);
+        }
     }
     function draw() {
         const commandEncoder = device.createCommandEncoder();
