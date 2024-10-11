@@ -48,8 +48,9 @@
     const explosionSize = 7;
     const mapDensityRatio = 4;
     const movementStrengthX = 0.01;
-    const movementStrengthUp = 0.06;
+    const movementStrengthUp = 0.01;
     const movementStrengthDown = 0.1;
+    const velMagSqMax = 100;
     
     const futureFrametime = 5;
     const minNegativeTwoDensities = -0.05;
@@ -317,10 +318,6 @@
                                 let gy = gridPos.y + oy;
 
                                 if (wallGrid[gx][gy] > 0) {
-                                    if (pi == 0) {
-                                        force.y += 200;
-                                        continue;
-                                    }
                                     let cx = f32(gx * ${cellEdge} - ${cellEdge});
                                     let cy = f32(gy * ${cellEdge} - ${cellEdge});
                                     let _x = cx + ${cellEdge / 2};
@@ -390,11 +387,12 @@
 
                     force -= vec2<f32>(0, 0.0098);
                     if (pi == 0) {
+                        if (wallGrid[gridPos.x][gridPos.y] > 0) {
+                            force.y += 2;
+                        }
                         force.x += interaction[3] * ${movementStrengthX};
                         if (interaction[4] > 0) {
-                            if (densities[pi] > ${targetDensity * 1.5}) {
-                                force.y += interaction[4] * ${movementStrengthUp};
-                            }
+                            force.y += interaction[4] * ${movementStrengthUp};
                         } else {
                             force.y += interaction[4] * ${movementStrengthDown};
                         }
@@ -424,9 +422,20 @@
                         newVel.y = -abs(newVel.y) * ${wallDamp};
                         newPos.y = ${simulationHeight};
                     }
+                    let velMagSq = pow(newVel.x, 2) + pow(newVel.y, 2);
+                    if (velMagSq > ${velMagSqMax}) {
+                        newVel.x *= ${velMagSqMax} / velMagSq;
+                        newVel.y *= ${velMagSqMax} / velMagSq;
+                    }
+                    if (pi == 0) {
+                        if (interaction[4] < 0) {
+                            newPos.y += interaction[4] * ${movementStrengthDown * 100};
+                        }
+                    }
 
+                    positions[2][pi] = newPos;//switched
                     var gridPosNew = posToGridPos(positions[2][pi]);
-                    positions[2][pi] = newPos;
+
                     velVis[pi].x = newVel.x;
                     velVis[pi].y = newVel.y;
                     var length = grid[passIndexes[1]][gridPosNew.x][gridPosNew.y][0] + 1;
