@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Water Invaders</title>
+    <style>
+        /* body::before {
+            content: "";
+            margin: inherit;
+            position: fixed;
+            inset: 0;
+            aspect-ratio: 16/9;
+            background-size: calc(100% / 96) calc(100% / 54);
+            background-image: linear-gradient(to right, grey 1px, transparent 1px), linear-gradient(to bottom, grey 1px, transparent 1px);
+        } */
+        canvas {
+            background: url("./map_decor.png");
+            background-size: 102.08%;
+            background-position: center;
+            image-rendering: pixelated;
+        }
+        #player {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            width: 32px;
+            height: 32px;
+            background: red;
+            --x: -300px;
+            --y: -300px;
+            transform: translate(var(--x), var(--y));
+        }
+    </style>
+</head>
+<body>
+<div id="player"></div>
+<script type="module">
+    const count = 5000;
+    const FPS = 800;
+    const targetDensity = 0.00035;
+    const airFriction = 0.00003;
+    const fluidFriction = 0.002;
+    const pressureMult = 200;
+    const wallDamp = 0.99;
+    const drawRadius = 42;
+    const cellCapacity = 16;
+    const explosionSize = 7;
+    const mapDensityRatio = 4;
+    const movementStrengthX = 0.01;
+    const movementStrengthUp = 0.06;
+    const movementStrengthDown = 0.1;
+    
+    const futureFrametime = 5;
+    const minNegativeTwoDensities = -0.05;
+
+    const fixedFrametime = 1000 / FPS;
+    const canvasWidth = 1920;
+    const canvasHeight = 1080;
+    const simulationWidth = 7680;
+    const simulationHeight = 4320;
+    const cellsX = 96 + 2;
+    const cellsY = 54 + 2;
+
+    const cells = cellsX * cellsY;
+    const cellEdge = simulationWidth / 96;
+    const explosionRadius = cellEdge * explosionSize;
+    const gridStaticLen = cells * cellCapacity;
+    const gridBufferSize = gridStaticLen * 4;
+    const wallBufferSize = cells * 4;
+    const emptyGrid = new Uint32Array(gridStaticLen);
+    const wallGrid = new Float32Array(cells);
+    const interaction = new Float32Array([
+        0,//shotEnum: 0, click, space, click+space
+        0,//mouseX
+        0,//mouseY
+        0,//moveX
+        0,//moveY
+    ]);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
+    canvas.style = "width:100%;";
+    document.body.appendChild(canvas);
+
+    const adapter = await navigator.gpu.requestAdapter({ powerPreference: "high-performance" });
+    const device = await adapter.requestDevice();
+    const context = canvas.getContext("webgpu");
+    const format = navigator.gpu.getPreferredCanvasFormat();
+    context.configure({ device, format, alphaMode: "premultiplied" });
+    
+    const drawShaderCode = `
+    @group(0) @binding(0) var<storage, read> drawData : array<vec4<f32>, ${count}>;
+    struct VertexOutput {
+        @builtin(position) Position : vec4<f32>,
+        @location(0) color : vec4<f32>,
+    }
+
+    @vertex
+    fn vertex(
+        @builtin(instance_index) i : u32,
+        @location(0) position : vec2<f32>
+    ) -> VertexOutput {
+        var out : VertexOutput;
+        out.Position = vec4<f32>((position * ${drawRadius} + drawData[i].xy) * vec2<f32>(${2 / canvasWidth / 4}, ${2 / canvasHeight / 4}) - vec2<f32>(1.0, 1.0), 0.0, 1.0);
+        if (i == 0) {
+            out.color = vec4(1.0, 0.0, 0.0, 1.0);
+        } else {
+            out.color = vec4(drawData[i].z + drawData[i].w - 4.4, drawData[i].z, drawData[i].w, 1.0);
+        }
+        return out;
+    }
+
+    @fragment
+    fn fragment(@location(0) color: vec4<f32>) -> @location(0) vec4<f32> {
+        return color;
+    }`;
+
+    const verticesBuffer = device.createBuffer({
+        size: 32,
+        usage: GPUBufferUsage.VERTEX,
+        mappedAtCreation: true,
+    });
+    new Float32Array(verticesBuffer.getMappedRange()).set([
+        0.5, -0.5,
+        -0.5, -0.5,
+        0.5, 0.5,
+        -0.5, 0.5,
+    ]);
+    verticesBuffer.unmap();
+
+    const emptyGridBuffer = device.createBuffer({
+        size: gridBufferSize,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
+    });
+
+    const interactionBuffer = device.createBuffer({
+        size: interaction.byteLength,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
+    });
+    const wallBuffer = device.createBuffer({
+        size: wallBufferSize,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
+    });
+    const positionsBuffer = device.createBuffer({
+        size: count * 8 * 3,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
+    });
+    const velVisBuffer = device.createBuffer({
+        size: count * 8 * 2,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+    });
+    const densitiesBuffer = device.createBuffer({
+        size: count * 4,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+    });
+    const gridBuffer = device.createBuffer({
+        size: gridBufferSize * 2,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+    });
+    const passIndexesBuffer = device.createBuffer({
+        size: 12,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+    });
+    const computeOutBuffer = device.createBuffer({
+        label: "out",
+        size: count * 16,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
+    });
+    const allEntries = [
+        {
+            binding: 0,
+            visibility: GPUShaderStage.COMPUTE,
+            buffer: { type: "storage" },
+            resource: { buffer: interactionBuffer },
+        },
+        {
+            binding: 1,
+            visibility: GPUShaderStage.COMPUTE,
+            buffer: { type: "storage" },
+            resource: { buffer: wallBuffer },
+        },
+        {
+            binding: 2,
+            visibility: GPUShaderStage.COMPUTE,
+            buffer: { type: "storage" },
+            resource: { buffer: positionsBuffer },
+        },
+        {
+            binding: 3,
+            visibility: GPUShaderStage.COMPUTE,
+            buffer: { type: "storage" },
+            resource: { buffer: velVisBuffer },
+        },
+        {
+            binding: 4,
+            visibility: GPUShaderStage.COMPUTE,
+            buffer: { type: "storage" },
+            resource: { buffer: densitiesBuffer },
+        },
+        {
+            binding: 5,
+            visibility: GPUShaderStage.COMPUTE,
+            buffer: { type: "storage" },
+            resource: { buffer: gridBuffer },
+        },
+        {
+            binding: 6,
+            visibility: GPUShaderStage.COMPUTE,
+            buffer: { type: "storage" },
+            resource: { buffer: passIndexesBuffer },
+        },
+        {
+            binding: 7,
+            visibility: GPUShaderStage.COMPUTE,
+            buffer: { type: "storage" },
+            resource: { buffer: computeOutBuffer },
+        },
+    ];
+    const fnPosToGridPos = `
+        fn posToGridPos(pos: vec2<f32>) -> vec2<i32> {
+            return vec2<i32>(
+                i32(floor(pos.x / ${cellEdge})) + 1,
+                i32(floor(pos.y / ${cellEdge})) + 1,
+            );
+        }
+    `;
+    
+    const passes = [
+        {
+            entries: allEntries.slice(0, 7),
+            bindingsCode: `
+                @group(0) @binding(0) var<storage, read_write> interaction : array<f32, ${interaction.length}>;
+                @group(0) @binding(1) var<storage, read_write> wallGrid : array<array<f32, ${cellsY}>, ${cellsX}>;
+                @group(0) @binding(2) var<storage, read_write> positions : array<array<vec2<f32>, ${count}>, 3>;
+                @group(0) @binding(3) var<storage, read_write> velVis : array<vec4<f32>, ${count}>;
+                @group(0) @binding(4) var<storage, read_write> densities : array<f32, ${count}>;
+                @group(0) @binding(5) var<storage, read_write> grid : array<array<array<array<u32, ${cellCapacity}>, ${cellsY}>, ${cellsX}>, 2>;
+                @group(0) @binding(6) var<storage, read_write> passIndexes : array<u32, 3>;
+            `,
+            mainCode: `
+                fn main(
+                    @builtin(global_invocation_id) id: vec3u
+                ) {
+                    let pi = id.x;
+                    let gridPos = posToGridPos(positions[0][pi]);
+                    densities[pi] = 0.0;
+                    var cell: array<u32, ${cellCapacity}>;
+                    var _len: i32;
+                    velVis[pi].z = 0;
+                    velVis[pi].w = 0;
+                    for (var ox = -1; ox <= 1; ox++) {
+                        let gx = gridPos.x + ox;
+                        for (var oy = -1; oy <= 1; oy++) {
+                            let gy = gridPos.y + oy;
+                            cell = grid[passIndexes[0]][gx][gy];
+                            _len = i32(cell[0]);
+                            for (var ni = 1; ni <= _len; ni++) {
+                                let _pi = cell[ni];
+                                if (pi == _pi) {
+                                    continue;
+                                }
+
+                                let futureDistSq = pow(positions[1][_pi].x - positions[1][pi].x, 2)
+                                    + pow(positions[1][_pi].y - positions[1][pi].y, 2);
+
+                                if (futureDistSq > ${cellEdge**2}) {
+                                    continue;
+                                }
+
+                                let dd = pow(${cellEdge} - pow(futureDistSq, 0.5), 2);
+                                if (pi == 0) {
+                                    densities[pi] += dd * 8;
+                                } else {
+                                    densities[pi] += dd;
+                                }
+                                velVis[pi].z += (velVis[_pi].x - velVis[pi].x) * dd;
+                                velVis[pi].w += (velVis[_pi].y - velVis[pi].y) * dd;
+                            }
+                        }
+                    }
+                    densities[pi] /= ${Math.PI * (cellEdge**4) / 6};
+
+                    velVis[pi].z *= ${1 / (Math.PI * (cellEdge**4) / 6)};
+                    velVis[pi].w *= ${1 / (Math.PI * (cellEdge**4) / 6)};
+                }
+                ${fnPosToGridPos}
+            `,
+            workgroupSizeX: 32,
+        },
+        {
+            entries: allEntries.slice(0, 8),
+            bindingsCode: `
+                @group(0) @binding(0) var<storage, read_write> interaction : array<f32, ${interaction.length}>;
+                @group(0) @binding(1) var<storage, read_write> wallGrid : array<array<f32, ${cellsY}>, ${cellsX}>;
+                @group(0) @binding(2) var<storage, read_write> positions : array<array<vec2<f32>, ${count}>, 3>;
+                @group(0) @binding(3) var<storage, read_write> velVis : array<vec4<f32>, ${count}>;
+                @group(0) @binding(4) var<storage, read_write> densities : array<f32, ${count}>;
+                @group(0) @binding(5) var<storage, read_write> grid : array<array<array<array<u32, ${cellCapacity}>, ${cellsY}>, ${cellsX}>, 2>;
+                @group(0) @binding(6) var<storage, read_write> passIndexes : array<u32, 3>;
+                @group(0) @binding(7) var<storage, read_write> out : array<vec4<f32>, ${count}>;
+            `,
+            mainCode: `
+                fn main(
+                    @builtin(global_invocation_id) id: vec3u
+                ) {
+                    let pi = id.x;
+                    let gridPos = posToGridPos(positions[0][pi]);
+                    var force = vec2<f32>(0, 0);
+                    if (densities[pi] > 0) {
+                        var _cell: array<u32, ${cellCapacity}>;
+                        var _len: i32;
+                        for (var ox = -1; ox <= 1; ox++) {
+                            let gx = gridPos.x + ox;
+                            for (var oy = -1; oy <= 1; oy++) {
+                                let gy = gridPos.y + oy;
+
+                                if (wallGrid[gx][gy] > 0) {
+                                    if (pi == 0) {
+                                        force.y += 200;
+                                        continue;
+                                    }
+                                    let cx = f32(gx * ${cellEdge} - ${cellEdge});
+                                    let cy = f32(gy * ${cellEdge} - ${cellEdge});
+                                    let _x = cx + ${cellEdge / 2};
+                                    let _y = cy + ${cellEdge / 2};
+                                    
+                                    let manDistFuture = vec2<f32>(_x, _y) - positions[1][pi];
+                                    let eucDistSqFuture = pow(manDistFuture.x, 2) + pow(manDistFuture.y, 2);
+                                    if (eucDistSqFuture > ${cellEdge**2}) {
+                                        continue;
+                                    }
+                                    var eucDistFuture: f32;
+                                    if (eucDistSqFuture < 1) {
+                                        eucDistFuture = 1;
+                                    } else {
+                                        eucDistFuture = pow(eucDistSqFuture, 0.5);
+                                    }
+                                    var twoDensities = (
+                                        (densities[pi] - ${targetDensity}) / densities[pi]
+                                        + (wallGrid[gx][gy] - ${targetDensity}) * ${mapDensityRatio} / wallGrid[gx][gy]
+                                    );
+                                    if (twoDensities < 0) {
+                                        twoDensities = max(0, twoDensities);
+                                    }
+
+                                    let eigenVec = manDistFuture / eucDistFuture;
+                                    force += eigenVec * twoDensities * (eucDistFuture - ${cellEdge});
+                                }
+                                _cell = grid[passIndexes[0]][gx][gy];
+                                _len = i32(_cell[0]);
+                                for (var ni = 1; ni <= _len; ni++) {
+                                    let _pi = _cell[ni];
+                                    if (pi == _pi) {
+                                        continue;
+                                    }
+                                    if (densities[_pi] == 0) {
+                                        continue;
+                                    }
+                                    let manDistFuture = positions[1][_pi] - positions[1][pi];
+                                    let eucDistSqFuture = pow(manDistFuture.x, 2) + pow(manDistFuture.y, 2);
+                                    if (eucDistSqFuture > ${cellEdge**2}) {
+                                        continue;
+                                    }
+                                    var eucDistFuture: f32;
+                                    if (eucDistSqFuture < 1) {
+                                        eucDistFuture = 1;
+                                    } else {
+                                        eucDistFuture = pow(eucDistSqFuture, 0.5);
+                                    }
+                                    var twoDensities = (
+                                        (densities[pi] - ${targetDensity}) / densities[pi]
+                                        + (densities[_pi] - ${targetDensity}) / densities[_pi]
+                                    );
+                                    
+                                    if (twoDensities < 0) {
+                                        twoDensities = max(${minNegativeTwoDensities}, twoDensities);
+                                    } else if (pi == 0 && manDistFuture.y > 0) {
+                                        force.y += 0.5;
+                                    }
+
+                                    let eigenVec = manDistFuture / eucDistFuture;
+                                    force += eigenVec * twoDensities * (eucDistFuture - ${cellEdge});
+                                }
+                            }
+                        }
+                        force *= ${pressureMult * 6 / ((cellEdge**4) * Math.PI)} / densities[pi];
+                    }
+
+                    force -= vec2<f32>(0, 0.0098);
+                    if (pi == 0) {
+                        force.x += interaction[3] * ${movementStrengthX};
+                        if (interaction[4] > 0) {
+                            if (densities[pi] > ${targetDensity * 1.5}) {
+                                force.y += interaction[4] * ${movementStrengthUp};
+                            }
+                        } else {
+                            force.y += interaction[4] * ${movementStrengthDown};
+                        }
+                    }
+
+                    if (densities[pi] < ${targetDensity}) {
+                        force -= sign(velVis[pi].xy) * pow(velVis[pi].xy, vec2(2, 2)) * ${airFriction};
+                    } else {
+                        force += velVis[pi].zw * densities[pi] / ${targetDensity};
+                        force -= sign(velVis[pi].xy) * pow(velVis[pi].xy, vec2(2, 2)) * densities[pi] / 2 * ${fluidFriction};
+                    }
+
+                    var newVel = velVis[pi].xy + force * ${fixedFrametime};
+                    
+                    var newPos = positions[0][pi] + newVel * ${fixedFrametime};
+                    if (newPos.x < 1) {
+                        newVel.x = abs(newVel.x) * ${wallDamp};
+                        newPos.x = 1;
+                    } else if (newPos.x >= ${simulationWidth - 1}) {
+                        newVel.x = -abs(newVel.x) * ${wallDamp};
+                        newPos.x = ${simulationWidth - 2};
+                    }
+                    if (newPos.y < 1) {
+                        newVel.y = abs(newVel.y) * ${wallDamp};
+                        newPos.y = 1;
+                    } else if (newPos.y >= ${simulationHeight - 1}) {
+                        newVel.y = -abs(newVel.y) * ${wallDamp};
+                        newPos.y = ${simulationHeight};
+                    }
+
+                    var gridPosNew = posToGridPos(positions[2][pi]);
+                    positions[2][pi] = newPos;
+                    velVis[pi].x = newVel.x;
+                    velVis[pi].y = newVel.y;
+                    var length = grid[passIndexes[1]][gridPosNew.x][gridPosNew.y][0] + 1;
+                    grid[passIndexes[1]][gridPosNew.x][gridPosNew.y][length] = pi;
+                    grid[passIndexes[1]][gridPosNew.x][gridPosNew.y][0] = length;
+                }
+                ${fnPosToGridPos}
+            `,
+            workgroupSizeX: 2,
+        },
+        {
+            entries: [allEntries[0], allEntries[2], allEntries[3], allEntries[7]],
+            bindingsCode: `
+                @group(0) @binding(0) var<storage, read_write> interaction : array<f32, ${interaction.length}>;
+                @group(0) @binding(2) var<storage, read_write> positions : array<array<vec2<f32>, ${count}>, 3>;
+                @group(0) @binding(3) var<storage, read_write> velVis : array<vec4<f32>, ${count}>;
+                @group(0) @binding(7) var<storage, read_write> out : array<vec4<f32>, ${count}>;
+            `,
+            mainCode: `
+                fn main(
+                    @builtin(global_invocation_id) id: vec3u
+                ) {
+                    let pi = id.x;
+                    positions[0][pi].x = positions[2][pi].x;
+                    positions[0][pi].y = positions[2][pi].y;
+                    positions[1][pi] = positions[0][pi] + velVis[pi].xy * ${futureFrametime};
+
+                    out[pi].x = positions[0][pi].x;
+                    out[pi].y = positions[0][pi].y;
+                    out[pi].z = (abs(velVis[pi].x) + abs(velVis[pi].y)) * 0.2;
+                    out[pi].w = pow(1.5 + abs(velVis[pi].x) + abs(velVis[pi].y), 1.1) * 0.3;
+
+                    velVis[pi].z = 0;
+                    velVis[pi].w = 0;
+                    
+                    //shotEnum: 0, click, space, click+space
+                    if (interaction[0] == 1 || interaction[0] == 3) {
+                        var dx = interaction[1] - positions[0][pi].x;
+                        var dy = interaction[2] - positions[0][pi].y;
+                        var distSq = pow(dx, 2) + pow(dy, 2);
+                        if (distSq < ${explosionRadius**2}) {
+                            var dist = pow(distSq, 0.5);
+                            var nx = dx / dist;
+                            var ny = dy / dist;
+                            var s = ${explosionRadius} - dist;
+                            
+                            if (interaction[0] == 3) {
+                                velVis[pi].x += nx * s / 6000 * ${fixedFrametime};
+                                velVis[pi].y += ny * s / 6000 * ${fixedFrametime};
+                            } else {
+                                velVis[pi].x -= nx * s / 1500 * ${fixedFrametime};
+                                velVis[pi].y -= ny * s / 1500 * ${fixedFrametime};
+                            }
+                        }
+                    }
+                }
+                ${fnPosToGridPos}
+            `,
+            workgroupSizeX: 32,
+        },
+    ];
+    for (let pass of passes) {
+        pass.pipeline = device.createComputePipeline({
+            layout: device.createPipelineLayout({
+                bindGroupLayouts: [ device.createBindGroupLayout({ entries: pass.entries }) ],
+            }),
+            compute: {
+                module: device.createShaderModule({
+                    code: `
+                        ${pass.bindingsCode}
+                        @compute @workgroup_size(${pass.workgroupSizeX}, 1, 1) ${pass.mainCode}
+                    `,
+                    label: "pass",
+                }),
+                entryPoint: "main",
+            },
+        });
+        pass.bindGroup = device.createBindGroup({
+            layout: pass.pipeline.getBindGroupLayout(0),
+            entries: pass.entries,
+        });
+        
+        delete pass.entries;
+        delete pass.bindingsCode;
+        delete pass.mainCode;
+    }
+
+    const passIndexes = new Uint32Array([1, 0]);
+    device.queue.writeBuffer(passIndexesBuffer, 0, passIndexes.buffer);
+
+    for (let gx = 0; gx < cellsX; gx++) {
+        if (gx != 0 || gx != cellsX - 1) continue;
+        for (let gy = 0; gy < cellsY; gy++) {
+            if (gy != 0 || gy != cellsY - 1) continue;
+            wallGrid[gx * cellsY + gy] = targetDensity * cellCapacity;
+        }
+    }
+    map: {
+        const mapImg = document.createElement("img");
+        await new Promise(res => {
+            mapImg.addEventListener("load", res);
+            mapImg.src = "./map.png";
+        });
+        const canvas = document.createElement("canvas");
+        canvas.width = 98;
+        canvas.height = 56;
+        const ctx = document.createElement("canvas").getContext("2d");
+        ctx.drawImage(mapImg, 0, 0);
+        const mapData = ctx.getImageData(0, 0, cellsX, cellsY).data;
+        for (let gx = 0; gx < cellsX; gx++) {
+            for (let gy = 0; gy < cellsY; gy++) {
+                const rfi = ((cellsY - gy - 1) * cellsX + gx) * 4;
+                const gi = gx * cellsY + gy;
+                const mapVal = mapData[rfi] / 255;
+                wallGrid[gi] = mapVal * targetDensity * cellCapacity;
+            }
+        }
+        device.queue.writeBuffer(wallBuffer, 0, wallGrid.buffer);
+    }
+
+    const initialPositions = new Float32Array(count * 2);
+    const initialGridContent = new Uint32Array(gridStaticLen);
+    for (let pi2 = 0; pi2 < count * 2; pi2 += 2) {
+        let x = Math.random() * simulationWidth;
+        let y = Math.random() * simulationHeight / 3 + simulationHeight * 0.66;
+        let gx = Math.floor(x / cellEdge) + 1;
+        let gy = Math.floor(y / cellEdge) + 1;
+        let gi = gx * cellsX + gy;
+        const cellPtr = gi * cellCapacity;
+
+        initialPositions[pi2] = x;
+        initialPositions[pi2 + 1] = y;
+        initialPositions[pi2 + count * 2] = x;
+        initialPositions[pi2 + 1 + count * 2] = y;
+
+        const len = initialGridContent[cellPtr] + 1;
+        initialGridContent[len] = pi2 / 2;
+        initialGridContent[cellPtr] = len;
+    }
+    device.queue.writeBuffer(positionsBuffer, 0, initialPositions.buffer);
+    device.queue.writeBuffer(gridBuffer, 0, initialGridContent.buffer);
+
+    const drawDataBuffer = device.createBuffer({
+        size: count * 16,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+    });
+    const drawPipeline = device.createRenderPipeline({
+        layout: "auto",
+        vertex: {
+            module: device.createShaderModule({ code: drawShaderCode }),
+            entryPoint: "vertex",
+            buffers: [{
+                arrayStride: 8,
+                attributes: [{
+                    shaderLocation: 0,
+                    offset: 0,
+                    format: "float32x2"
+                }]
+            }]
+        },
+        fragment: {
+            module: device.createShaderModule({ code: drawShaderCode }),
+            entryPoint: "fragment",
+            targets: [{ format }]
+        },
+        primitive: { topology: "triangle-strip" }
+    });
+    const drawBindGroup = device.createBindGroup({
+        layout: drawPipeline.getBindGroupLayout(0),
+        entries: [ { binding: 0, resource: { buffer: drawDataBuffer } } ]
+    });
+    const renderPassDescriptor = {
+        colorAttachments: [
+            {
+                view: null,
+                clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 0.0 },
+                loadOp: "clear",
+                storeOp: "store",
+            },
+        ],
+    };
+
+    const queue = [];
+    let lastTimestamp = performance.now() - 10;
+    let acc = 0;
+    let iteration = 0;
+    let iterationsMax = 1;
+    function loop() {
+        const dt = performance.now() - lastTimestamp;
+        lastTimestamp = performance.now();
+        if (document.hasFocus()) {
+            device.queue.writeBuffer(interactionBuffer, 0, interaction.buffer);
+
+            acc += dt;
+            iteration = 0;
+            iterationsMax = (dt / fixedFrametime)<<1;
+            while (acc > fixedFrametime) {
+                makePasses();
+                acc -= fixedFrametime;
+                iteration++;
+                if (iteration == iterationsMax) {
+                    break;
+                }
+            }
+            draw();
+        }
+        requestAnimationFrame(loop);
+    }
+    
+    function makePasses() {
+        let commandEncoder = device.createCommandEncoder();
+        commandEncoder.copyBufferToBuffer(
+            emptyGridBuffer, 0,
+            gridBuffer, passIndexes[0] * gridBufferSize,
+            gridBufferSize,
+        );
+        queue[0] = commandEncoder.finish();
+        device.queue.submit(queue);
+
+        const temp = passIndexes[0];
+        passIndexes[0] = passIndexes[1];
+        passIndexes[1] = temp;
+        device.queue.writeBuffer(passIndexesBuffer, 0, passIndexes.buffer);
+
+        for (let { pipeline, bindGroup, workgroupSizeX } of passes) {
+            const commandEncoder = device.createCommandEncoder();
+            const pass = commandEncoder.beginComputePass();
+            pass.setPipeline(pipeline);
+            pass.setBindGroup(0, bindGroup);
+            pass.dispatchWorkgroups(count / workgroupSizeX);
+            pass.end();
+            queue[0] = commandEncoder.finish();
+            device.queue.submit(queue);
+        }
+    }
+    function draw() {
+        const commandEncoder = device.createCommandEncoder();
+        commandEncoder.copyBufferToBuffer(computeOutBuffer, 0, drawDataBuffer, 0, drawDataBuffer.size);
+        
+        renderPassDescriptor.colorAttachments[0].view = context.getCurrentTexture().createView();
+        const pass = commandEncoder.beginRenderPass(renderPassDescriptor);
+        pass.setPipeline(drawPipeline);
+        pass.setBindGroup(0, drawBindGroup);
+        pass.setVertexBuffer(0, verticesBuffer);
+        pass.draw(4, count);
+        pass.end();
+
+        queue[0] = commandEncoder.finish();
+        device.queue.submit(queue);
+    }
+
+    function changeWallGrid(gx, gy, val) {
+        wallGrid[gx * cellsX + gy] = val;
+        device.queue.writeBuffer(wallBuffer, 0, wallGrid.buffer);
+    }
+    
+    loop();
+
+    addEventListener("mousedown", e => {
+        interaction[0] |= 0b01;
+        interaction[1] = e.x * simulationWidth / innerWidth;
+        interaction[2] = simulationHeight - e.offsetY * simulationWidth / innerWidth;
+    });
+    addEventListener("mouseup", e => {
+        interaction[0] &= 0b10;
+        interaction[1] = e.x * simulationWidth / innerWidth;
+        interaction[2] = simulationHeight - e.offsetY * simulationWidth / innerWidth;
+    });
+    addEventListener("mousemove", e => {
+        interaction[1] = e.x * simulationWidth / innerWidth;
+        interaction[2] = simulationHeight - e.offsetY * simulationWidth / innerWidth;
+    });
+    const movement = [0, 0, 0, 0];
+    addEventListener("keydown", e => {
+        if (e.key == "Control") {
+            interaction[0] |= 0b10;
+        }
+        if (e.key == "a" || e.key == "A") {
+            movement[0] = 1;
+        }
+        if (e.key == "d" || e.key == "D") {
+            movement[1] = 1;
+        }
+        if (e.key == "s" || e.key == "S") {
+            movement[2] = 1;
+        }
+        if (e.key == "w" || e.key == "W") {
+            movement[3] = 1;
+        }
+        interaction[3] = movement[1] - movement[0];
+        interaction[4] = movement[3] - movement[2];
+    });
+    addEventListener("keyup", e => {
+        if (e.key == "Control") {
+            interaction[0] &= 0b01;
+        }
+        if (e.key == "a" || e.key == "A") {
+            movement[0] = 0;
+        }
+        if (e.key == "d" || e.key == "D") {
+            movement[1] = 0;
+        }
+        if (e.key == "s" || e.key == "S") {
+            movement[2] = 0;
+        }
+        if (e.key == "w" || e.key == "W") {
+            movement[3] = 0;
+        }
+        interaction[3] = movement[1] - movement[0];
+        interaction[4] = movement[3] - movement[2];
+    });
+</script>
+</body>
+</html>
