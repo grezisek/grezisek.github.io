@@ -5,16 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Water Invaders</title>
     <style>
-        /* body::before {
-            content: "";
-            margin: inherit;
-            position: fixed;
-            inset: 0;
-            aspect-ratio: 16/9;
-            background-size: calc(100% / 96) calc(100% / 54);
-            background-image: linear-gradient(to right, grey 1px, transparent 1px), linear-gradient(to bottom, grey 1px, transparent 1px);
-        } */
+        body {
+            position: relative;
+            overflow: hidden;
+            margin: 0;
+        }
         canvas {
+            display: block;
+            width: 100%;
             background: url("./map_decor.png");
             background-size: 102.08%;
             background-position: center;
@@ -22,21 +20,21 @@
         }
         #player {
             position: absolute;
-            top: 5px;
-            left: 5px;
-            width: 32px;
-            height: 32px;
-            background: red;
-            --x: -300px;
-            --y: -300px;
+            bottom: -0.833%;
+            left: -0.833%;
+            width: 1.666%;
+            aspect-ratio: 1;
+            background: url("./boat.png");
+            background-size: cover;
             transform: translate(var(--x), var(--y));
+            image-rendering: pixelated;
         }
     </style>
 </head>
 <body>
 <div id="player"></div>
 <script type="module">
-    const count = 5000;
+    const count = 6000;
     const FPS = 800;
     const targetDensity = 0.00035;
     const airFriction = 0.00003;
@@ -47,10 +45,16 @@
     const cellCapacity = 16;
     const explosionSize = 7;
     const mapDensityRatio = 4;
-    const movementStrengthX = 0.01;
-    const movementStrengthUp = 0.01;
-    const movementStrengthDown = 0.1;
+    const movementStrengthX = 0.2;
+    const movementStrengthUp = 0.2;
+    const movementStrengthDown = 0.2;
+    const movementDisplacementH = 5;
     const velMagSqMax = 100;
+    const boatVelMagSqMax = 25;
+    const mapBoatForce = 60;
+    const frictionFromBoat = 10;
+    const frictionToBoat = 1;
+    const frictionToSelf = 3;
     
     const futureFrametime = 5;
     const minNegativeTwoDensities = -0.05;
@@ -82,7 +86,6 @@
     const canvas = document.createElement("canvas");
     canvas.width = canvasWidth;
     canvas.height = canvasHeight;
-    canvas.style = "width:100%;";
     document.body.appendChild(canvas);
 
     const adapter = await navigator.gpu.requestAdapter({ powerPreference: "high-performance" });
@@ -106,7 +109,7 @@
         var out : VertexOutput;
         out.Position = vec4<f32>((position * ${drawRadius} + drawData[i].xy) * vec2<f32>(${2 / canvasWidth / 4}, ${2 / canvasHeight / 4}) - vec2<f32>(1.0, 1.0), 0.0, 1.0);
         if (i == 0) {
-            out.color = vec4(1.0, 0.0, 0.0, 1.0);
+            out.color = vec4(0.0, 0.0, 0.0, 0.0);
         } else {
             out.color = vec4(drawData[i].z + drawData[i].w - 4.4, drawData[i].z, drawData[i].w, 1.0);
         }
@@ -219,6 +222,13 @@
             resource: { buffer: computeOutBuffer },
         },
     ];
+    
+    const computeOutReadBuffer = device.createBuffer({
+        label: "outRead",
+        size: 2 * 4,
+        usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
+    });
+    
     const fnPosToGridPos = `
         fn posToGridPos(pos: vec2<f32>) -> vec2<i32> {
             return vec2<i32>(
@@ -227,7 +237,6 @@
             );
         }
     `;
-    
     const passes = [
         {
             entries: allEntries.slice(0, 7),
@@ -273,11 +282,18 @@
                                 let dd = pow(${cellEdge} - pow(futureDistSq, 0.5), 2);
                                 if (pi == 0) {
                                     densities[pi] += dd * 8;
+                                    velVis[pi].z += (velVis[_pi].x - velVis[pi].x) * dd * ${frictionToBoat};
+                                    velVis[pi].w += (velVis[_pi].y - velVis[pi].y) * dd * ${frictionToBoat};
                                 } else {
                                     densities[pi] += dd;
+                                    if (_pi == 0) {
+                                        velVis[pi].z += (velVis[_pi].x - velVis[pi].x) * dd * ${frictionFromBoat};
+                                        velVis[pi].w += (velVis[_pi].y - velVis[pi].y) * dd * ${frictionFromBoat};
+                                    } else {
+                                        velVis[pi].z += (velVis[_pi].x - velVis[pi].x) * dd * ${frictionToSelf};
+                                        velVis[pi].w += (velVis[_pi].y - velVis[pi].y) * dd * ${frictionToSelf};
+                                    }
                                 }
-                                velVis[pi].z += (velVis[_pi].x - velVis[pi].x) * dd;
-                                velVis[pi].w += (velVis[_pi].y - velVis[pi].y) * dd;
                             }
                         }
                     }
@@ -309,20 +325,28 @@
                     let pi = id.x;
                     let gridPos = posToGridPos(positions[0][pi]);
                     var force = vec2<f32>(0, 0);
-                    if (densities[pi] > 0) {
+                    if (pi == 0 && wallGrid[gridPos.x][gridPos.y] > 0) {
+                        let cx = f32(gridPos.x * ${cellEdge} - ${cellEdge});
+                        let cy = f32(gridPos.y * ${cellEdge} - ${cellEdge});
+                        let _x = cx + ${cellEdge / 2};
+                        let _y = cy + ${cellEdge / 2};
+                        let manDistFuture = vec2<f32>(_x - ${simulationWidth / 2}, _y - ${simulationHeight});
+                        let eucDistSqFuture = pow(manDistFuture.x, 2) + pow(manDistFuture.y, 2);
+                        var eigenVec = manDistFuture / pow(eucDistSqFuture, 0.5);
+                        force -= ${mapBoatForce} * eigenVec;
+
+                    } else {
                         var _cell: array<u32, ${cellCapacity}>;
                         var _len: i32;
                         for (var ox = -1; ox <= 1; ox++) {
                             let gx = gridPos.x + ox;
                             for (var oy = -1; oy <= 1; oy++) {
                                 let gy = gridPos.y + oy;
-
-                                if (wallGrid[gx][gy] > 0) {
+                                if (wallGrid[gx][gy] > 0 && pi > 0) {
                                     let cx = f32(gx * ${cellEdge} - ${cellEdge});
                                     let cy = f32(gy * ${cellEdge} - ${cellEdge});
                                     let _x = cx + ${cellEdge / 2};
                                     let _y = cy + ${cellEdge / 2};
-                                    
                                     let manDistFuture = vec2<f32>(_x, _y) - positions[1][pi];
                                     let eucDistSqFuture = pow(manDistFuture.x, 2) + pow(manDistFuture.y, 2);
                                     if (eucDistSqFuture > ${cellEdge**2}) {
@@ -341,7 +365,6 @@
                                     if (twoDensities < 0) {
                                         twoDensities = max(0, twoDensities);
                                     }
-
                                     let eigenVec = manDistFuture / eucDistFuture;
                                     force += eigenVec * twoDensities * (eucDistFuture - ${cellEdge});
                                 }
@@ -373,8 +396,6 @@
                                     
                                     if (twoDensities < 0) {
                                         twoDensities = max(${minNegativeTwoDensities}, twoDensities);
-                                    } else if (pi == 0 && manDistFuture.y > 0) {
-                                        force.y += 0.5;
                                     }
 
                                     let eigenVec = manDistFuture / eucDistFuture;
@@ -382,20 +403,34 @@
                                 }
                             }
                         }
-                        force *= ${pressureMult * 6 / ((cellEdge**4) * Math.PI)} / densities[pi];
+                        force *= ${pressureMult * 6 / ((cellEdge**4) * Math.PI)} / max(${targetDensity / 10}, densities[pi]);
                     }
 
                     force -= vec2<f32>(0, 0.0098);
+
                     if (pi == 0) {
-                        if (wallGrid[gridPos.x][gridPos.y] > 0) {
-                            force.y += 2;
-                        }
-                        force.x += interaction[3] * ${movementStrengthX};
+                        let horizontalMovementAmount = interaction[3]
+                            * (1.0 - min(pow(velVis[pi].x, 2), ${boatVelMagSqMax}) / ${boatVelMagSqMax});
+                        force.x += horizontalMovementAmount * ${movementStrengthX};
+
                         if (interaction[4] > 0) {
-                            force.y += interaction[4] * ${movementStrengthUp};
+                            let verticalMovementAmount = interaction[4]
+                                // * (1.0 - min(positions[0][pi].y + ${simulationHeight / 4}, ${simulationHeight}) / ${simulationHeight})
+                                * (1.0 - max(0, min(1, pow(densities[pi] - ${targetDensity * 1.27}, 0.5))));
+                            force.y += verticalMovementAmount * ${movementStrengthUp};
                         } else {
-                            force.y += interaction[4] * ${movementStrengthDown};
+                            let verticalMovementAmount = interaction[4] * (1.0 - max(0, ${simulationHeight / 2} - positions[0][pi].y) / ${simulationHeight / 2});
+                            force.y += verticalMovementAmount * ${movementStrengthDown};
                         }
+                    } else if (wallGrid[gridPos.x][gridPos.y] > 0) {
+                        let cx = f32(gridPos.x * ${cellEdge} - ${cellEdge});
+                        let cy = f32(gridPos.y * ${cellEdge} - ${cellEdge});
+                        let _x = cx + ${cellEdge / 2};
+                        let _y = cy + ${cellEdge / 2};
+                        let manDistFuture = vec2<f32>(_x - ${simulationWidth / 2}, _y - ${simulationHeight / 2});
+                        let eucDistSqFuture = pow(manDistFuture.x, 2) + pow(manDistFuture.y, 2);
+                        var eigenVec = manDistFuture / pow(eucDistSqFuture, 0.5);
+                        force -= eigenVec * ${mapDensityRatio};
                     }
 
                     if (densities[pi] < ${targetDensity}) {
@@ -422,14 +457,26 @@
                         newVel.y = -abs(newVel.y) * ${wallDamp};
                         newPos.y = ${simulationHeight};
                     }
+
                     let velMagSq = pow(newVel.x, 2) + pow(newVel.y, 2);
                     if (velMagSq > ${velMagSqMax}) {
                         newVel.x *= ${velMagSqMax} / velMagSq;
                         newVel.y *= ${velMagSqMax} / velMagSq;
                     }
+
                     if (pi == 0) {
                         if (interaction[4] < 0) {
-                            newPos.y += interaction[4] * ${movementStrengthDown * 100};
+                            if (wallGrid[gridPos.x][gridPos.y] == 0) {
+                                let verticalMovementAmount = interaction[4] * (1.0 - max(0, ${simulationHeight / 2} - positions[0][pi].y) / ${simulationHeight / 2});
+                                newPos.y += verticalMovementAmount * ${movementDisplacementH};
+                            }
+                        } else {
+                            let verticalMovementAmount = interaction[4] * (1.0 - min(positions[0][pi].y, ${simulationHeight / 2}) / ${simulationHeight / 2});
+                            newPos.y += verticalMovementAmount * ${movementDisplacementH};
+                            if (wallGrid[gridPos.x][gridPos.y] > 0) {
+                                newVel.x *= 0.1;
+                                newVel.y *= 0.1;
+                            }
                         }
                     }
 
@@ -462,9 +509,13 @@
                     positions[0][pi].x = positions[2][pi].x;
                     positions[0][pi].y = positions[2][pi].y;
                     positions[1][pi] = positions[0][pi] + velVis[pi].xy * ${futureFrametime};
-
-                    out[pi].x = positions[0][pi].x;
-                    out[pi].y = positions[0][pi].y;
+                    if (pi == 0) {
+                        out[pi].x = positions[1][pi].x;
+                        out[pi].y = positions[1][pi].y;
+                    } else {
+                        out[pi].x = positions[0][pi].x;
+                        out[pi].y = positions[0][pi].y;
+                    }
                     out[pi].z = (abs(velVis[pi].x) + abs(velVis[pi].y)) * 0.2;
                     out[pi].w = pow(1.5 + abs(velVis[pi].x) + abs(velVis[pi].y), 1.1) * 0.3;
 
@@ -645,8 +696,12 @@
         requestAnimationFrame(loop);
     }
     
+    const position = [0, 0];
+    let reading = false;
     function makePasses() {
         let commandEncoder = device.createCommandEncoder();
+
+        commandEncoder = device.createCommandEncoder();
         commandEncoder.copyBufferToBuffer(
             emptyGridBuffer, 0,
             gridBuffer, passIndexes[0] * gridBufferSize,
@@ -672,7 +727,26 @@
         }
     }
     function draw() {
-        const commandEncoder = device.createCommandEncoder();
+        let commandEncoder = device.createCommandEncoder();
+        if (!reading) {
+            reading = true;
+
+            commandEncoder.copyBufferToBuffer(
+                computeOutBuffer, 0,
+                computeOutReadBuffer, 0,
+                4 * 2
+            );
+            queue[0] = commandEncoder.finish();
+            device.queue.submit(queue);
+
+            computeOutReadBuffer.mapAsync(GPUMapMode.READ).then(_=>{
+                [position[0], position[1]] = new Float32Array(computeOutReadBuffer.getMappedRange());
+                computeOutReadBuffer.unmap();
+                reading = false;
+            });
+            
+            commandEncoder = device.createCommandEncoder();
+        }
         commandEncoder.copyBufferToBuffer(computeOutBuffer, 0, drawDataBuffer, 0, drawDataBuffer.size);
         
         renderPassDescriptor.colorAttachments[0].view = context.getCurrentTexture().createView();
@@ -685,6 +759,9 @@
 
         queue[0] = commandEncoder.finish();
         device.queue.submit(queue);
+
+        player.style.setProperty("--x", `${position[0] / simulationWidth * canvas.offsetWidth}px`);
+        player.style.setProperty("--y", `-${position[1] / simulationHeight * canvas.offsetHeight}px`);
     }
 
     function changeWallGrid(gx, gy, val) {
