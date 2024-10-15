@@ -48,13 +48,14 @@
     const movementStrengthX = 0.2;
     const movementStrengthUp = 0.2;
     const movementStrengthDown = 0.2;
-    const movementDisplacementH = 5;
+    const movementDisplacementH = 0;
     const velMagSqMax = 100;
     const boatVelMagSqMax = 25;
     const mapBoatForce = 60;
     const frictionFromBoat = 10;
-    const frictionToBoat = 1;
+    const frictionToBoat = 0;
     const frictionToSelf = 3;
+    const boatDensityRatio = 8;
     
     const futureFrametime = 5;
     const minNegativeTwoDensities = -0.05;
@@ -281,15 +282,16 @@
 
                                 let dd = pow(${cellEdge} - pow(futureDistSq, 0.5), 2);
                                 if (pi == 0) {
-                                    densities[pi] += dd * 8;
-                                    velVis[pi].z += (velVis[_pi].x - velVis[pi].x) * dd * ${frictionToBoat};
-                                    velVis[pi].w += (velVis[_pi].y - velVis[pi].y) * dd * ${frictionToBoat};
+                                    densities[pi] += dd * ${boatDensityRatio};
+                                    velVis[pi].z += (velVis[_pi].x - velVis[pi].x) * dd * ${frictionToBoat / boatDensityRatio};
+                                    velVis[pi].w += (velVis[_pi].y - velVis[pi].y) * dd * ${frictionToBoat / boatDensityRatio};
                                 } else {
-                                    densities[pi] += dd;
                                     if (_pi == 0) {
+                                        densities[pi] += dd;
                                         velVis[pi].z += (velVis[_pi].x - velVis[pi].x) * dd * ${frictionFromBoat};
                                         velVis[pi].w += (velVis[_pi].y - velVis[pi].y) * dd * ${frictionFromBoat};
                                     } else {
+                                        densities[pi] += dd;
                                         velVis[pi].z += (velVis[_pi].x - velVis[pi].x) * dd * ${frictionToSelf};
                                         velVis[pi].w += (velVis[_pi].y - velVis[pi].y) * dd * ${frictionToSelf};
                                     }
@@ -395,7 +397,13 @@
                                     );
                                     
                                     if (twoDensities < 0) {
-                                        twoDensities = max(${minNegativeTwoDensities}, twoDensities);
+                                        if (pi == 0) {
+                                            twoDensities = 0;
+                                        } else if (_pi == 0) {
+                                            twoDensities = 0;
+                                        } else {
+                                            twoDensities = max(${minNegativeTwoDensities}, twoDensities);
+                                        }
                                     }
 
                                     let eigenVec = manDistFuture / eucDistFuture;
@@ -416,7 +424,7 @@
                         if (interaction[4] > 0) {
                             let verticalMovementAmount = interaction[4]
                                 // * (1.0 - min(positions[0][pi].y + ${simulationHeight / 4}, ${simulationHeight}) / ${simulationHeight})
-                                * (1.0 - max(0, min(1, pow(densities[pi] - ${targetDensity * 1.27}, 0.5))));
+                                * (1.0 - max(0, min(1, pow(densities[pi] - ${targetDensity * 1.11}, 0.5))));
                             force.y += verticalMovementAmount * ${movementStrengthUp};
                         } else {
                             let verticalMovementAmount = interaction[4] * (1.0 - max(0, ${simulationHeight / 2} - positions[0][pi].y) / ${simulationHeight / 2});
